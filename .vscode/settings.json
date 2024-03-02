@@ -1,0 +1,41 @@
+{
+    "Lua.diagnostics.globals": [
+        "_G",
+        "colors",
+        "colours",
+        "commands",
+        "disk",
+        "fs",
+        "gps",
+        "help",
+        "http",
+        "io",
+        "keys",
+        "multishell",
+        "os",
+        "paintutils",
+        "parallel",
+        "peripheral",
+        "pocket",
+        "rednet",
+        "redstone",
+        "settings",
+        "shell",
+        "term",
+        "textutils",
+        "turtle",
+        "vector",
+        "window"
+    ],
+    "Lua.diagnostics.disable": [
+        "need-check-nil"
+    ],
+    "Lua.hint.setType": true,
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.diagnostics.libraryFiles": "Enable",
+    "Lua.diagnostics.severity": {
+        "unused-local": "Warning"
+    },
+    "Lua.type.weakUnionCheck": true,
+    "Lua.type.weakNilCheck": true
+}
