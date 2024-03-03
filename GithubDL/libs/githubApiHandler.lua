@@ -185,7 +185,15 @@ githubApiHandler.removeProject = function(manifest,projectName)
         return nil, "Project not found"
     end
     local installedProjects = githubApiHandler.getInstalledProjects()
-    if installedProjects[manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name] == nil then
+    local projectID = manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name
+    local found = false
+    for _,v in ipairs(installedProjects) do
+        if v == projectID then
+            found = true
+            break
+        end
+    end
+    if not found then
         return nil, "Project not installed"
     end
     --if the project has an installer, run it with the remove argument
