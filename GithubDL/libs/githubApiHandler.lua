@@ -15,7 +15,11 @@ local function GetFile64(url)
         return nil, error
     end
     local responseData = textutils.unserializeJSON(response.body)
-    return base64.decode(responseData.content)
+    --textHelper.log("Downloaded "..url, "githubApiHandler.GetFile64",true)
+    --textHelper.log("response: "..response.body, "githubApiHandler.GetFile64",true)
+    local decoded = base64.decode(responseData.content)
+    --textHelper.log("data: "..decoded, "githubApiHandler.GetFile64",true)
+    return decoded
 end
 
 
@@ -54,10 +58,12 @@ githubApiHandler.downloadManifest = function(owner,repo,branch)
         branch = repoData.default_branch
     end
     manifest.branch = branch
+    textHelper.log("Downloading manifest for "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch, "githubApiHandler.downloadManifest",true)
     local tree,error = githubApiHandler.Gettree(owner,repo,branch)
     if tree == nil then
         return nil, error
     end
+    local count = 0
     local files = {}
     for i=1,#tree.tree do
         local file = tree.tree[i]
@@ -65,18 +71,32 @@ githubApiHandler.downloadManifest = function(owner,repo,branch)
         if file.type == "blob" then
             if textHelper.endsWith(file.path,manifestExtension) then
                 files[file.path] = file
+                count = count + 1
             end
         end
     end
+    textHelper.log("Found "..count.." manifest files", "githubApiHandler.downloadManifest",true)
     manifest.projects = {}
-    for _,v in pairs(files) do
+    for k,v in pairs(files) do
         local project = {}
-        project.path = v.path
+        project.path = k
         project.sha = v.sha
         --download the file
         local content = GetFile64(v.url)
-        project.manifest = textutils.unserializeJSON(content)
-        table.insert(manifest.projects,project)
+        if content == nil then
+            return nil, error
+        end
+        --content = textHelper.flatten(content)
+        local manifestData,msg = textutils.unserializeJSON(content)
+        if manifestData == nil then
+            textHelper.log("Failed to parse manifest: "..project.path)
+            textHelper.log("Failed content: "..content, "githubApiHandler.downloadManifest",true)
+            textHelper.log("Failed reason: "..msg, "githubApiHandler.downloadManifest",true)
+        else
+            textHelper.log("found project: "..manifestData.name)
+            project.manifest = manifestData
+            table.insert(manifest.projects,project)
+        end
     end
     local savePath = configManager.GetValue("data_dir").."/manifests/"..owner.."/"..repo.."/"..branch..".json"
     fileManager.SaveJson(savePath,manifest)
@@ -84,7 +104,7 @@ githubApiHandler.downloadManifest = function(owner,repo,branch)
 end
 
 githubApiHandler.downloadProject = function(manifest,projectName)
-    textHelper.log("Downloading project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch)
+    textHelper.log("Downloading project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch, "githubApiHandler.downloadProject",false)
     local project = nil
     for _,v in ipairs(manifest.projects) do
         if v.manifest.name == projectName then
@@ -99,7 +119,7 @@ githubApiHandler.downloadProject = function(manifest,projectName)
     for index, value in ipairs(project.manifest.files) do
         local pair = textHelper.splitString(value,"=")
         local hostPath = pair[1]
-        textHelper.log("Downloading "..hostPath.."( "..index.." of "..#project.manifest.files.." )")
+        textHelper.log("Downloading "..hostPath.."( "..index.." of "..#project.manifest.files.." )", "githubApiHandler.downloadProject",false)
         local remotePath = pair[2]
         if textHelper.startsWith(remotePath,"/") then
             remotePath = remotePath:sub(2)
@@ -143,6 +163,8 @@ githubApiHandler.downloadProject = function(manifest,projectName)
     end
     installedProjects[manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name] = os.time("utc")
     fileManager.SaveObject(installedProjectsList,installedProjects)
+    textHelper.log("Project "..project.manifest.name.." installed", "githubApiHandler.downloadProject",false)
+    return true
 end
 
 githubApiHandler.removeProject = function(manifest,projectName)

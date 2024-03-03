@@ -37,6 +37,16 @@ local function getCachedHeaders(url)
     return headers
 end
 
+local function cacheResponse(url, responsePackage)
+    textHelper.log("Caching response for: "..url, "http", true)
+    local cacheDir = configManager.GetValue("web_cache")
+    if not fs.exists(cacheDir) then
+        fs.makeDir(cacheDir)
+    end
+    local cacheFile = cacheDir.."/"..base64.encode(url)
+    fileManager.SaveObject(cacheFile, responsePackage)
+end
+
 local function packageResponse(response)
     local headers = response.getResponseHeaders()
     local body = response.readAll()
@@ -59,19 +69,13 @@ local function packageConversation(url,headers,response)
     return cache
 end
 
-local function cacheResponse(url, responsePackage)
-    local cacheDir = configManager.GetValue("web_cache")
-    local cacheFile = cacheDir.."/"..base64.encode(url)
-    fileManager.SaveObject(cacheFile, responsePackage)
-end
-
-
-
 --status functions
 local function good(ConvPackage)
     --check if we need to cache the response
     if ConvPackage.response.headers["etag"] ~= nil or ConvPackage.response.headers["last-modified"] ~= nil then
         cacheResponse(ConvPackage.request.url, ConvPackage.response)
+    else
+        textHelper.log("Not caching response for: "..ConvPackage.request.url, "http", true)
     end
     return ConvPackage.response
 end
@@ -115,10 +119,12 @@ end
 
 local function forward(ConvPackage)
     local newUrl = ConvPackage.response.headers["location"]
+    textHelper.log("Forwarding from "..ConvPackage.request.url.." to "..newUrl, "http", true)
     return httpManager.SendHttpGET(newUrl,ConvPackage.request.headers)
 end
 
 local function useCache(ConvPackage)
+    textHelper.log("Using cached response for: "..ConvPackage.request.url, "http", true)
     return getCached(ConvPackage.request.url)
 end
 
@@ -180,7 +186,8 @@ httpManager.SendHttpGET = function(url, bonusHeaders)
         end
     end
     --send the request
-    textHelper.log("Sending request to: "..url)
+    --textHelper.log("Sending request to: "..url)
+    os.sleep(0.5)
     local response,error = http.get(url, headers)
     if response == nil then
         return nil, "Failed to send request: "..error

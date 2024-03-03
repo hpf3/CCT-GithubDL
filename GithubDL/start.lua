@@ -91,9 +91,9 @@ local function addRepo(funcArgs)
         branch = funcArgs[2]
     end
 
-    local manifest = apiHandler.downloadManifest(owner,repo,branch)
+    local manifest,msg = apiHandler.downloadManifest(owner,repo,branch)
     if manifest == nil then
-        log("Failed to download manifest")
+        log("Failed to download manifest: "..msg)
         return
     end
     log("repo manifest downloaded ( "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch..")")
@@ -120,7 +120,66 @@ local function list(funcArgs)
 end
 local function install(funcArgs)
     setPath()
-    --TODO: Implement
+    local libManager = require("GithubDL.libManager")
+    local apiHandler = libManager.getApiHandler()
+    local textHelper = libManager.gettextHelper()
+
+    local ID = funcArgs[1]
+    if ID == nil then
+        log("No ID provided")
+        return
+    end
+    textHelper.log("Installing: "..ID)
+    local name, owner, repo, branch = nil,nil,nil,nil
+    --check if the ID is a '.' separated string, if so, split it
+    if ID:find("%.") then
+        parts = textHelper.splitString(ID, "%.")
+        if #parts == 4 then
+            owner = parts[1]
+            repo = parts[2]
+            branch = parts[3]
+            name = parts[4]
+        elseif #parts == 3 then
+            owner = parts[1]
+            repo = parts[2]
+            name = parts[3]
+        else
+            log("Invalid ID, must be in the format owner.repo.branch.name, owner.repo.name, or name")
+            return
+        end
+    else
+        name = ID
+        branch = ""
+    end
+    local manifests = apiHandler.getAvailableProjects()
+    textHelper.log("found "..#manifests.." manifests", "install", true)
+    local prefix = ""
+    if owner ~= nil then
+        prefix = owner.."/"..repo.."/"..branch
+    end
+    textHelper.log("prefix: "..prefix, "install", true)
+    for _, value in ipairs(manifests) do
+        textHelper.log("checking: "..value, "install", true)
+        if textHelper.startsWith(value, prefix) then
+            textHelper.log("found: "..value, "install", true)
+            local parts = textHelper.splitString(value, "/")
+            local manifest = apiHandler.getRepoManifest(parts[1], parts[2], parts[3])
+            for _, project in ipairs(manifest.projects) do
+                textHelper.log("checking: "..project.manifest.name, "install", true)
+                if project.manifest.name == name then
+                    textHelper.log("Project found", "install", true)
+                    local sucsess,msg = apiHandler.downloadProject(manifest,project.manifest.name)
+                    if not sucsess then
+                        textHelper.log("Failed to download project: "..msg, "install", false)
+                        return
+                    end
+                    textHelper.log("Project downloaded", "install", false)
+                    return
+                end
+            end
+        end
+    end
+    textHelper.log("Project not found", "install", false)
 end
 local function update(funcArgs)
     setPath()
@@ -167,6 +226,8 @@ local SWITCH_Commands = {
 
 if SWITCH_Commands[command] then
     SWITCH_Commands[command](commandArgs)
+else
+    log("Invalid command")
 end
 
 return SWITCH_Commands

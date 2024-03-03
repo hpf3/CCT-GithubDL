@@ -25,8 +25,13 @@ textHelper.endsWith = function(text, suffix)
    return text:sub(-#suffix) == suffix
 end
 
-textHelper.log = function(message,logName)
-   print("[GithubDL] "..message)
+textHelper.log = function(message,logName,quiet)
+   if quiet == nil then
+       quiet = false
+   end
+   if not quiet then
+       print("[GithubDL] "..message)
+   end
    local libManager = require("GithubDL.libManager")
    local configManager = libManager.getConfigManager()
 
@@ -36,7 +41,8 @@ textHelper.log = function(message,logName)
    end
    local logFile = logDir.."/"..logName..".log"
    local log = fs.open(logFile,"a")
-   log.writeLine("["..os.time("local").."] "..message)
+   log.write("["..os.time("local").."] "..message.."\n")
+   log.close()
 end
 
 --pretty print a table of file paths
@@ -49,6 +55,7 @@ textHelper.PrettyPrint = function(tbl)
       for _,part in ipairs(parts) do
          if path[depth] == nil then
             path[depth] = part
+            print(string.rep("  ",depth-1)..part)
          else
             if path[depth] ~= part then
                path[depth] = part
@@ -61,6 +68,11 @@ textHelper.PrettyPrint = function(tbl)
          depth = depth + 1
       end
    end
+end
+
+--removes all newlines from the text
+textHelper.flatten = function (text)
+   return text:gsub("\n","")
 end
 
 return textHelper
