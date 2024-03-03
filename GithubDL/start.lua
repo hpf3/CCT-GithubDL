@@ -3,7 +3,8 @@
 local function log(message)
     print("[GithubDL] "..message)
 end
--- Compatibility: Lua-5.1
+
+--split based on a pattern
 local function split(str, pat)
     local t = {}  -- NOTE: use {n = 0} in Lua-5.0
     local fpat = "(.-)" .. pat
@@ -22,6 +23,8 @@ local function split(str, pat)
     end
     return t
  end
+
+ -- test if a string starts with a prefix
 local function startsWith(text, prefix)
     return text:find(prefix, 1, true) == 1
 end
@@ -73,9 +76,59 @@ local function startup()
     configManager.SetConfig(configManager.GetConfig()) -- if the file does not exist, this will create it
 
 end
-local function main(funcArgs)
+local function addRepo(funcArgs)
     setPath()
-    --TODO: Implement main functions
+    local libManager = require("GithubDL.libManager")
+    local apiHandler = libManager.getApiHandler()
+
+    local url = funcArgs[1]
+    local owner, repo, branch = apiHandler.getRepoFromUrl(url)
+    if owner == nil or repo == nil then
+        log("Invalid url")
+        return
+    end
+    if funcArgs[2] ~= nil then
+        branch = funcArgs[2]
+    end
+
+    local manifest = apiHandler.downloadManifest(owner,repo,branch)
+    if manifest == nil then
+        log("Failed to download manifest")
+        return
+    end
+    log("repo manifest downloaded ( "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch..")")
+end
+local function delRepo(funcArgs)
+    setPath()
+    --TODO: Implement
+end
+local function list(funcArgs)
+    setPath()
+    local libManager = require("GithubDL.libManager")
+    local apiHandler = libManager.getApiHandler()
+    local textHelper = libManager.gettextHelper()
+    local projects = {}
+    if funcArgs[1] == "installed" then
+        projects = apiHandler.getInstalledProjects()
+    else
+        projects = apiHandler.getAvailableProjects()
+    end
+    if #projects == 0 then
+        textHelper.log("No projects found")
+    end
+    textHelper.PrettyPrint(projects)
+end
+local function install(funcArgs)
+    setPath()
+    --TODO: Implement
+end
+local function update(funcArgs)
+    setPath()
+    --TODO: Implement
+end
+local function remove(funcArgs)
+    setPath()
+    --TODO: Implement
 end
 local function setToken(funcArgs)
     setPath()
@@ -102,7 +155,13 @@ local commandArgs = args
 
 local SWITCH_Commands = {
     ["startup"] = startup,
-    ["main"] = main,
+    ["addRepo"] = addRepo,
+    ["delRepo"] = delRepo,
+    ["list"] = list,
+    ["install"] = install,
+    ["update"] = update,
+    ["remove"] = remove,
+    ["help"] = help,
     ["setToken"] = setToken
 }
 

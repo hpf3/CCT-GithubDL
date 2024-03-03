@@ -31,4 +31,18 @@ local function getConfigManager()
 end
 libManager.getConfigManager = getConfigManager
 
+local function gettextHelper()
+    return getLib("textHelper")
+end
+libManager.gettextHelper = gettextHelper
+
+local function getBase64()
+    return getLib("base64")
+end
+libManager.getBase64 = getBase64
+
+local function gethttpManager()
+    return getLib("httpManager")
+end
+libManager.gethttpManager = gethttpManager
 return libManager

@@ -1,0 +1,15 @@
+{
+    "name": "GithubDL",
+    "description": "Download files from Github, and keep them up to date.",
+    "installer": "/GithubDL/installer.lua"
+    "files": [
+        "/GithubDL.lua=/GithubDL/start.lua",
+        "/libs/GithubDL/configManager.lua=/GithubDL/libs/configManager.lua",
+        "/libs/GithubDL/githubApiHandler.lua=/GithubDL/libs/githubApiHandler.lua",
+        "/libs/GithubDL/fileManager.lua=/GithubDL/libs/fileManager.lua",
+        "/libs/GithubDL/libManager.lua=/GithubDL/libs/libManager.lua",
+        "/libs/GithubDL/textHelper.lua=/GithubDL/libs/textHelper.lua",
+        "/libs/GithubDL/base64.lua=/GithubDL/libs/base64.lua",
+        "/libs/GithubDL/httpManager.lua=/GithubDL/libs/httpManager.lua"
+    ]
+}

@@ -1,103 +1,270 @@
 local libManager = require("GithubDL.libManager")
 local configManager = libManager.getConfigManager()
+local textHelper = libManager.gettextHelper()
+local fileManager = libManager.getFileManager()
+local base64 = libManager.getBase64()
+local httpManager = libManager.gethttpManager()
 local ApiUrl = "https://api.github.com"
+local manifestExtension = ".GDLManifest"
 local githubApiHandler = {}
 
-local function SendHttpGET(url, bonusHeaders)
-    local possible = http.checkURL(url)
-    if not possible then
-        return nil, "Invalid URL"
-    end
-    --set the headers
-    local headers = {
-        ["User-Agent"] = "GithubDL/script",
-        ["Accept"] = "application/vnd.github+json",
-        ["X-GitHub-Api-Version"] = "2022-11-28"
-    }
-    --check if we have a token
-    local token = configManager.GetValue("api_token")
-    if token ~= nil and token ~= "" then
-        headers["Authorization"] = "Bearer "..token
-    end
-    --add the bonus headers
-    if bonusHeaders ~= nil then
-        for k, v in pairs(bonusHeaders) do
-            headers[k] = v
-        end
-    end
-    --send the request
-    local response,error = http.get(url, headers)
+--remote functions
+local function GetFile64(url)
+    local response,error = httpManager.SendHttpGET(url)
     if response == nil then
-        return nil, "Failed to send request: "..error
+        return nil, error
     end
-    return response
+    local responseData = textutils.unserializeJSON(response.body)
+    return base64.decode(responseData.content)
 end
---[[ TODO: Find a use for this function
-local function SendHttpPOST(url, data, bonusHeaders)
 
-    local possible = http.checkURL(url)
-    if not possible then
-        return nil, "Invalid URL"
-    end
-    --set the headers
-    local headers = {
-        ["User-Agent"] = "GithubDL/script",
-        ["Accept"] = "application/vnd.github+json",
-        ["X-GitHub-Api-Version"] = "2022-11-28"
-    }
-    --check if we have a token
-    local token = configManager.GetValue("api_token")
-    if token ~= nil and token ~= "" then
-        headers["Authorization"] = "Bearer "..token
-    end
-    --add the bonus headers
-    if bonusHeaders ~= nil then
-        for k, v in pairs(bonusHeaders) do
-            headers[k] = v
-        end
-    end
-    local dataString = textutils.serializeJSON(data)
-    --send the request
-    local response,error = http.post(url, dataString, headers)
-    if response == nil then
-        return nil, "Failed to send request: "..error
-    end
-    return response
-end
-]]--
 
 githubApiHandler.Gettree = function(owner,repo,branch)
     if branch == nil or branch == "" then
-        branch = "master"
+        return nil, "No branch provided"
     end
     local url = ApiUrl.."/repos/"..owner.."/"..repo.."/git/trees/"..branch.."?recursive=1"
-    local response,error = SendHttpGET(url)
+    local response,error = httpManager.SendHttpGET(url)
     if response == nil then
         return nil, error
     end
-    local status,msg = response.getResponseCode()
-    if status ~= 200 then
-        return nil, "Failed to get tree: "..msg
-    end
-    return textutils.unserializeJSON(response.readAll())
+    return textutils.unserializeJSON(response.body)
 end
 
-githubApiHandler.getCommit = function(owner,repo,branch)
-    if branch == nil or branch == "" then
-        branch = "master"
-    end
-    local url = ApiUrl.."/repos/"..owner.."/"..repo.."/commits/"..branch
-    local headers = {
-        ["Accept"] = "application/vnd.github.VERSION.sha"
-    }
-    local response,error = SendHttpGET(url,headers)
+githubApiHandler.getRepoInfo = function (owner,repo)
+    local url = ApiUrl.."/repos/"..owner.."/"..repo
+    local response,error = httpManager.SendHttpGET(url)
     if response == nil then
         return nil, error
     end
-    local status,msg = response.getResponseCode()
-    if status ~= 200 then
-        return nil, "Failed to get commit: "..msg
-    end
-    return textutils.unserializeJSON(response.readAll())
+
+    return textutils.unserializeJSON(response.body)
 end
+
+githubApiHandler.downloadManifest = function(owner,repo,branch)
+    local repoData,msg = githubApiHandler.getRepoInfo(owner,repo)
+    if repoData == nil then
+        return nil, msg
+    end
+    local manifest = {}
+    manifest.owner = owner
+    manifest.repo = repo
+    manifest.last_update = repoData.updated_at
+    if branch == nil or branch == "" then
+        branch = repoData.default_branch
+    end
+    manifest.branch = branch
+    local tree,error = githubApiHandler.Gettree(owner,repo,branch)
+    if tree == nil then
+        return nil, error
+    end
+    local files = {}
+    for i=1,#tree.tree do
+        local file = tree.tree[i]
+        --check if item is file
+        if file.type == "blob" then
+            if textHelper.endsWith(file.path,manifestExtension) then
+                files[file.path] = file
+            end
+        end
+    end
+    manifest.projects = {}
+    for _,v in pairs(files) do
+        local project = {}
+        project.path = v.path
+        project.sha = v.sha
+        --download the file
+        local content = GetFile64(v.url)
+        project.manifest = textutils.unserializeJSON(content)
+        table.insert(manifest.projects,project)
+    end
+    local savePath = configManager.GetValue("data_dir").."/manifests/"..owner.."/"..repo.."/"..branch..".json"
+    fileManager.SaveJson(savePath,manifest)
+    return manifest
+end
+
+githubApiHandler.downloadProject = function(manifest,projectName)
+    textHelper.log("Downloading project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch)
+    local project = nil
+    for _,v in ipairs(manifest.projects) do
+        if v.manifest.name == projectName then
+            project = v
+            break
+        end
+    end
+    if project == nil then
+        return nil, "Project not found"
+    end
+    local tree = githubApiHandler.Gettree(manifest.owner,manifest.repo,manifest.branch)
+    for index, value in ipairs(project.manifest.files) do
+        local pair = textHelper.splitString(value,"=")
+        local hostPath = pair[1]
+        textHelper.log("Downloading "..hostPath.."( "..index.." of "..#project.manifest.files.." )")
+        local remotePath = pair[2]
+        if textHelper.startsWith(remotePath,"/") then
+            remotePath = remotePath:sub(2)
+        end
+        local file = nil
+        for _,v in ipairs(tree.tree) do
+            if v.path == remotePath then
+                file = v
+                break
+            end
+        end
+        if file == nil then
+            return nil, "File not found"
+        end
+        local content = GetFile64(file.url)
+        fileManager.SaveFile(hostPath,content)
+    end
+    --if the project has an installer, download it
+    if project.manifest.installer ~= nil then
+        local installer = nil
+        for _,v in ipairs(tree.tree) do
+            if v.path == project.manifest.installer then
+                installer = v
+                break
+            end
+        end
+        if installer == nil then
+            return nil, "Installer not found"
+        end
+        local content = GetFile64(installer.url)
+        fileManager.SaveFile(configManager.GetValue("data_dir").."/tmp/installer.lua",content)
+        shell.run(configManager.GetValue("data_dir").."/tmp/installer.lua","install")
+        fs.delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
+    end
+
+    --update installed projects list
+    local installedProjectsList = configManager.GetValue("installed_projects")
+    local installedProjects = {}
+    if installedProjectsList ~= nil then
+        installedProjects = fileManager.LoadObject(installedProjectsList)
+    end
+    installedProjects[manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name] = os.time("utc")
+    fileManager.SaveObject(installedProjectsList,installedProjects)
+end
+
+githubApiHandler.removeProject = function(manifest,projectName)
+    textHelper.log("Removing project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch)
+    local project = nil
+    for _,v in ipairs(manifest.projects) do
+        if v.manifest.name == projectName then
+            project = v
+            break
+        end
+    end
+    if project == nil then
+        return nil, "Project not found"
+    end
+    local installedProjects = githubApiHandler.getInstalledProjects()
+    if installedProjects[manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name] == nil then
+        return nil, "Project not installed"
+    end
+    --if the project has an installer, run it with the remove argument
+    if project.manifest.installer ~= nil then
+        local tree = githubApiHandler.Gettree(manifest.owner,manifest.repo,manifest.branch)
+        local installer = nil
+        for _,v in ipairs(tree.tree) do
+            if v.path == project.manifest.installer then
+                installer = v
+                break
+            end
+        end
+        if installer == nil then
+            return nil, "Installer not found"
+        end
+        local content = GetFile64(installer.url)
+        fileManager.SaveFile(configManager.GetValue("data_dir").."/tmp/installer.lua",content)
+        shell.run(configManager.GetValue("data_dir").."/tmp/installer.lua","remove")
+        fs.delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
+    end
+    --remove the files
+    for index, value in ipairs(project.manifest.files) do
+        local pair = textHelper.splitString(value,"=")
+        local hostPath = pair[1]
+        textHelper.log("Removing "..hostPath.."( "..index.." of "..#project.manifest.files.." )")
+        fileManager.Delete(hostPath)
+    end
+end
+
+
+--local functions
+githubApiHandler.getRepoManifests = function()
+    local manifestDir = configManager.GetValue("data_dir").."/manifests"
+    if not fs.exists(manifestDir) then
+        fs.makeDir(manifestDir)
+        return {}
+    end
+    local manifests = fileManager.GetFilesRecursive(manifestDir)
+    return manifests
+end
+
+githubApiHandler.getRepoManifest = function(owner,repo,branch)
+    local manifestDir = configManager.GetValue("data_dir").."/manifests"
+    local manifestPath = manifestDir.."/"..owner.."/"..repo.."/"..branch..".json"
+    if not fs.exists(manifestPath) then
+        return nil, "Manifest not found"
+    end
+    return fileManager.LoadJson(manifestPath)
+end
+
+githubApiHandler.getInstalledProjects = function()
+    local installedProjectsList = configManager.GetValue("installed_projects")
+    if installedProjectsList == nil then
+        return {}
+    end
+    return fileManager.LoadObject(installedProjectsList)
+end
+
+githubApiHandler.getAvailableProjects = function()
+    local manifests = githubApiHandler.getRepoManifests()
+    local availableProjects = {}
+    for _,v in ipairs(manifests) do
+        local manifest = fileManager.LoadJson(v)
+        for _,v in ipairs(manifest.projects) do
+            table.insert(availableProjects,manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..v.manifest.name)
+        end
+    end
+    return availableProjects
+end
+
+--misc functions
+
+--parses a github url starting with https://github.com
+local function parseBrowser(url)
+    local parts = textHelper.splitString(url,"/")
+    local owner = parts[4]
+    local repo = parts[5]
+    if textHelper.endsWith(repo,".git") then
+        repo = repo:sub(1,#repo-4)
+    end
+    if parts[6] == "tree" then
+        return owner,repo,parts[7]
+    end
+    return owner,repo
+end
+
+--parses a github url starting with git@github.com:
+local function parseSSH(url)
+    local parts = textHelper.splitString(url,":")
+    local ownerRepoParts = textHelper.splitString(parts[2],"/")
+    local owner = ownerRepoParts[1]
+    local repo = ownerRepoParts[2]
+    if textHelper.endsWith(repo,".git") then
+        repo = repo:sub(1,#repo-4)
+    end
+    return owner,repo
+end
+
+githubApiHandler.getRepoFromUrl = function(url)
+    if textHelper.startsWith(url,"https://github.com") then
+        return parseBrowser(url)
+    elseif textHelper.startsWith(url,"git@github.com:") then
+        return parseSSH(url)
+    end
+    return nil, "Invalid url"
+end
+
+
 return githubApiHandler

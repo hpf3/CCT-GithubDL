@@ -6,7 +6,9 @@ local defaultConfig = {
     ["api_token"] = "",
     ["data_dir"] = "/data/GithubDL",
     ["log_dir"] = "/logs/GithubDL",
-    ["lib_dir"] = "/libs/GithubDL"
+    ["lib_dir"] = "/libs/GithubDL",
+    ["installed_projects"] = "/data/GithubDL/installedProjects.cfg",
+    ["web_cache"] = "/data/GithubDL/webCache"
 }
 --file functions
 local SaveConfig = function(data)

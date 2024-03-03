@@ -37,5 +37,6 @@
         "unused-local": "Warning"
     },
     "Lua.type.weakUnionCheck": true,
-    "Lua.type.weakNilCheck": true
+    "Lua.type.weakNilCheck": true,
+    "Lua.completion.autoRequire": false
 }
