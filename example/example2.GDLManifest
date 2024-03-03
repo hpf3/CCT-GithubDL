@@ -1,0 +1,7 @@
+{
+    "name": "example2",
+    "description": "see, you dont really need that installer thingy.",
+    "files": [
+        "/example.lua=/example/example.lua"
+    ]
+}

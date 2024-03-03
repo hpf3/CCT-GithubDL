@@ -20,10 +20,10 @@ end
 
 --the base url for the project, if you change this, keep in mind whether or not you need a trailing slash based on your manifest
 local baseUrl = "https://github.com/hpf3/CCT-GithubDL/raw/main"
-local manifestName = "GithubDL"
+local manifestPath = "/GithubDL.GDLManifest"
 
 --grab the manifest
-local response, error = http.get(baseUrl .. "/" .. manifestName .. ".GDLManifest")
+local response, error = http.get(baseUrl .. manifestPath)
 if response == nil then
     print("Failed to download manifest: " .. error)
     return
