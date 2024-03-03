@@ -214,13 +214,17 @@ local function remove(funcArgs)
         log("No ID provided")
         return
     end
-    textHelper.log("Installing: "..ID)
+    textHelper.log("Uninstalling: "..ID)
     local manifest, name = findProject(ID)
     if manifest == nil then
         textHelper.log("Failed to find project: "..name, "install", false)
         return
     end
     local sucsess,msg = apiHandler.removeProject(manifest,name)
+    if not sucsess then
+        textHelper.log("Failed to remove project: "..msg, "install", false)
+        return
+    end
     
 end
 local function setToken(funcArgs)
