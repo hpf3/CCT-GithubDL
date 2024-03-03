@@ -201,7 +201,32 @@ local function install(funcArgs)
 end
 local function update(funcArgs)
     setPath()
-    --TODO: Implement
+    local libManager = require("GithubDL.libManager")
+    local apiHandler = libManager.getApiHandler()
+    local textHelper = libManager.gettextHelper()
+
+    local manifest, name = nil,nil
+    local ID = funcArgs[1]
+    if ID ~= nil then
+        manifest, name = findProject(ID)
+        if manifest == nil then
+            textHelper.log("Failed to find project: "..name, "update", false)
+            return
+        end
+        local commit = apiHandler.getLatestCommit(manifest.owner, manifest.repo, manifest.branch)
+        if manifest.last_commit == commit then
+            textHelper.log("Project is up to date", "update", false)
+            return
+        else
+            textHelper.log("updating manifest ("..manifest.owner.."/"..manifest.repo.."/"..manifest.branch..")", "update", false)
+            local manifest,msg = apiHandler.downloadManifest(manifest.owner, manifest.repo, manifest.branch)
+            if manifest == nil then
+                textHelper.log("Failed to update manifest: "..msg, "update", false)
+                return
+            end
+            apiHandler.downloadProject(manifest, name)
+        end
+    end
 end
 local function remove(funcArgs)
     setPath()

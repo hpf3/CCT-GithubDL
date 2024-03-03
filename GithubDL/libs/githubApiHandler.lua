@@ -44,6 +44,17 @@ githubApiHandler.getRepoInfo = function (owner,repo)
 
     return textutils.unserializeJSON(response.body)
 end
+githubApiHandler.getLatestCommit = function(owner,repo,branch)
+    local url = ApiUrl.."/repos/"..owner.."/"..repo.."/commits/"..branch
+    local headers = {
+        ["per_page"] = "1"
+    }
+    local response,error = httpManager.SendHttpGET(url,headers)
+    if response == nil then
+        return nil, error
+    end
+    return textutils.unserializeJSON(response.body)
+end
 
 githubApiHandler.downloadManifest = function(owner,repo,branch)
     local repoData,msg = githubApiHandler.getRepoInfo(owner,repo)
@@ -53,11 +64,15 @@ githubApiHandler.downloadManifest = function(owner,repo,branch)
     local manifest = {}
     manifest.owner = owner
     manifest.repo = repo
-    manifest.last_update = repoData.updated_at
     if branch == nil or branch == "" then
         branch = repoData.default_branch
     end
     manifest.branch = branch
+    local commit,msg = githubApiHandler.getLatestCommit(owner,repo,branch)
+    if commit == nil then
+        return nil, msg
+    end
+    manifest.last_commit = commit.sha
     textHelper.log("Downloading manifest for "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch, "githubApiHandler.downloadManifest",true)
     local tree,error = githubApiHandler.Gettree(owner,repo,branch)
     if tree == nil then
