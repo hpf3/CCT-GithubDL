@@ -1,0 +1,8 @@
+{
+    "name": "example",
+    "description": "a simple project for testing.",
+    "installer": "example/exampleInstaller.lua",
+    "files": [
+        "/example.lua=/example/example.lua"
+    ]
+}
