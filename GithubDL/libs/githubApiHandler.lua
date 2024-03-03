@@ -139,9 +139,13 @@ githubApiHandler.downloadProject = function(manifest,projectName)
     end
     --if the project has an installer, download it
     if project.manifest.installer ~= nil then
+        local target = project.manifest.installer
+        if textHelper.startsWith(target,"/") then
+            target = target:sub(2)
+        end
         local installer = nil
         for _,v in ipairs(tree.tree) do
-            if v.path == project.manifest.installer then
+            if v.path == target then
                 installer = v
                 break
             end
@@ -152,16 +156,17 @@ githubApiHandler.downloadProject = function(manifest,projectName)
         local content = GetFile64(installer.url)
         fileManager.SaveFile(configManager.GetValue("data_dir").."/tmp/installer.lua",content)
         shell.run(configManager.GetValue("data_dir").."/tmp/installer.lua","install")
-        fs.delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
+        fileManager.Delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
     end
 
     --update installed projects list
     local installedProjectsList = configManager.GetValue("installed_projects")
     local installedProjects = {}
-    if installedProjectsList ~= nil then
+    if fs.exists(installedProjectsList) then
         installedProjects = fileManager.LoadObject(installedProjectsList)
     end
-    installedProjects[manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name] = os.time("utc")
+    local projectID = manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name
+    table.insert(installedProjects,projectID)
     fileManager.SaveObject(installedProjectsList,installedProjects)
     textHelper.log("Project "..project.manifest.name.." installed", "githubApiHandler.downloadProject",false)
     return true
@@ -186,9 +191,13 @@ githubApiHandler.removeProject = function(manifest,projectName)
     --if the project has an installer, run it with the remove argument
     if project.manifest.installer ~= nil then
         local tree = githubApiHandler.Gettree(manifest.owner,manifest.repo,manifest.branch)
+        local target = project.manifest.installer
+        if textHelper.startsWith(target,"/") then
+            target = target:sub(2)
+        end
         local installer = nil
         for _,v in ipairs(tree.tree) do
-            if v.path == project.manifest.installer then
+            if v.path == target then
                 installer = v
                 break
             end
@@ -199,7 +208,7 @@ githubApiHandler.removeProject = function(manifest,projectName)
         local content = GetFile64(installer.url)
         fileManager.SaveFile(configManager.GetValue("data_dir").."/tmp/installer.lua",content)
         shell.run(configManager.GetValue("data_dir").."/tmp/installer.lua","remove")
-        fs.delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
+        fileManager.Delete(configManager.GetValue("data_dir").."/tmp/installer.lua")
     end
     --remove the files
     for index, value in ipairs(project.manifest.files) do
@@ -208,6 +217,19 @@ githubApiHandler.removeProject = function(manifest,projectName)
         textHelper.log("Removing "..hostPath.."( "..index.." of "..#project.manifest.files.." )")
         fileManager.Delete(hostPath)
     end
+    --update installed projects list
+    local installedProjectsList = configManager.GetValue("installed_projects")
+    local installedProjects = fileManager.LoadObject(installedProjectsList)
+    local projectID = manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name
+    for i=1,#installedProjects do
+        if installedProjects[i] == projectID then
+            table.remove(installedProjects,i)
+            break
+        end
+    end
+    fileManager.SaveObject(installedProjectsList,installedProjects)
+    textHelper.log("Project "..project.manifest.name.." removed")
+    return true
 end
 
 
