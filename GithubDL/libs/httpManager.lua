@@ -188,15 +188,19 @@ httpManager.SendHttpGET = function(url, bonusHeaders)
     --send the request
     --textHelper.log("Sending request to: "..url)
     os.sleep(0.5)
-    local response,error = http.get(url, headers)
-    if response == nil then
+    local response,error,resp2 = http.get(url, headers)
+    if response == nil and resp2 == nil then
         return nil, "Failed to send request: "..error
+    end
+    if resp2 ~= nil then
+        response = resp2
     end
     local status,msg = response.getResponseCode()
     if SWITCH_httpStatus[status] == nil then
         return nil, "Unhandled status code: "..status.." "..msg
     end
     local ConvPackage = packageConversation(url,bonusHeaders,response)
+    response.close()
     return SWITCH_httpStatus[status](ConvPackage)
 end
 

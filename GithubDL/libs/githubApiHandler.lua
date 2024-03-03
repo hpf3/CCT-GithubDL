@@ -186,6 +186,9 @@ githubApiHandler.removeProject = function(manifest,projectName)
     end
     local installedProjects = githubApiHandler.getInstalledProjects()
     local projectID = manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name
+    if projectID == "hpf3/GithubDL/master/GithubDL" then
+        return nil, "Cannot remove GithubDL automatically, please remove manually"
+    end
     local found = false
     for _,v in ipairs(installedProjects) do
         if v == projectID then

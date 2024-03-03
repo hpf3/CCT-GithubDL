@@ -1,7 +1,7 @@
 {
     "name": "GithubDL",
     "description": "Download files from Github, and keep them up to date.",
-    "installer": "GithubDL/installer.lua",
+    "installer": "/GithubDL/installer.lua",
     "files": [
         "/GithubDL.lua=/GithubDL/start.lua",
         "/libs/GithubDL/configManager.lua=/GithubDL/libs/configManager.lua",
