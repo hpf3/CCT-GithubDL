@@ -38,5 +38,6 @@
     },
     "Lua.type.weakUnionCheck": true,
     "Lua.type.weakNilCheck": true,
-    "Lua.completion.autoRequire": false
+    "Lua.completion.autoRequire": false,
+    "craftos-pc.additionalArguments": "-c=${workspaceFolder}/build"
 }

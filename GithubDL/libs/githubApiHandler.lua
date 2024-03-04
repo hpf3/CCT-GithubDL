@@ -118,8 +118,11 @@ githubApiHandler.downloadManifest = function(owner,repo,branch)
     return manifest
 end
 
-githubApiHandler.downloadProject = function(manifest,projectName)
-    textHelper.log("Downloading project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch, "githubApiHandler.downloadProject",false)
+githubApiHandler.downloadProject = function(manifest,projectName,quiet)
+    if quiet == nil then
+        quiet = false
+    end
+    textHelper.log("Downloading project "..projectName.." from "..manifest.owner.."/"..manifest.repo.."/"..manifest.branch, "githubApiHandler.downloadProject",quiet)
     local project = nil
     for _,v in ipairs(manifest.projects) do
         if v.manifest.name == projectName then
@@ -134,7 +137,7 @@ githubApiHandler.downloadProject = function(manifest,projectName)
     for index, value in ipairs(project.manifest.files) do
         local pair = textHelper.splitString(value,"=")
         local hostPath = pair[1]
-        textHelper.log("Downloading "..hostPath.."( "..index.." of "..#project.manifest.files.." )", "githubApiHandler.downloadProject",false)
+        textHelper.log("Downloading "..hostPath.."( "..index.." of "..#project.manifest.files.." )", "githubApiHandler.downloadProject",quiet)
         local remotePath = pair[2]
         if textHelper.startsWith(remotePath,"/") then
             remotePath = remotePath:sub(2)
@@ -183,7 +186,7 @@ githubApiHandler.downloadProject = function(manifest,projectName)
     local projectID = manifest.owner.."/"..manifest.repo.."/"..manifest.branch.."/"..project.manifest.name
     table.insert(installedProjects,projectID)
     fileManager.SaveObject(installedProjectsList,installedProjects)
-    textHelper.log("Project "..project.manifest.name.." installed", "githubApiHandler.downloadProject",false)
+    textHelper.log("Project "..project.manifest.name.." installed", "githubApiHandler.downloadProject",quiet)
     return true
 end
 

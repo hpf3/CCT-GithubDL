@@ -8,7 +8,8 @@ local defaultConfig = {
     ["log_dir"] = "/logs/GithubDL",
     ["lib_dir"] = "/libs/GithubDL",
     ["installed_projects"] = "/data/GithubDL/installedProjects.cfg",
-    ["web_cache"] = "/data/GithubDL/webCache"
+    ["web_cache"] = "/data/GithubDL/webCache",
+    ["auto_update"] = "true"
 }
 --file functions
 local SaveConfig = function(data)

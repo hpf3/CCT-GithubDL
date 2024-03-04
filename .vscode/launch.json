@@ -10,8 +10,7 @@
             "request": "launch",
             "command": "craftos --gui -c=${workspaceFolder}/build",
             "preLaunchTask": "build",
-            "postDebugTask": "clean",
-            "showTerminal": true
+            "showTerminal": false
         }
     ]
 }
