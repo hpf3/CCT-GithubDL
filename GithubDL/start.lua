@@ -203,7 +203,7 @@ this.install = function(funcArgs)
         textHelper.log("Failed to find project: " .. name, "install", false)
         return
     end
-    local sucsess, msg = apiHandler.downloadProject(manifest, name)
+    local sucsess, msg = apiHandler.downloadProject(manifest, name.name)
     if not sucsess then
         textHelper.log("Failed to download project: " .. msg, "install", false)
         return

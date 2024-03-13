@@ -262,7 +262,7 @@ end
 
 ---installs the given project from the given manifest
 ---@param manifest RepoManifest the manifest for the repository to download from
----@param projectName string the name of the project as it appears in the manifest
+---@param projectName ProjectDefinition the name of the project as it appears in the manifest
 ---@param quiet boolean? whether or not to write to the console, default: false
 ---@return boolean? didComplete returns true if it finishes, nil otherwise
 ---@return string|nil error returns the error, if any
