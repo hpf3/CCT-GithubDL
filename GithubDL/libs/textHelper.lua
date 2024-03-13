@@ -65,9 +65,16 @@ textHelper.log = function(message, logName, quiet)
    log.close()
 end
 
---pretty print a table of file paths
---@param tbl string[] the table of file paths
+
+---pretty print a table of file paths
+---@param tbl string[] the table of file paths
 textHelper.PrettyPrint = function(tbl)
+   if tbl == nil then
+      return
+   end
+   if #tbl == 0 then
+      return
+   end
    local path = {}
    for _, v in ipairs(tbl) do
       local parts = textHelper.splitString(v, "/")
