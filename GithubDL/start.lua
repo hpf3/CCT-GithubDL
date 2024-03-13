@@ -50,6 +50,7 @@ this.findProject = function(ID)
     if ID:find("%.") then
         local parts = textHelper.splitString(ID, "%.")
         textHelper.log("parts: " .. #parts, "search", true)
+        --BUG if the ID is in the format owner.repo.branch we won't be able to tell
         if #parts == 4 then
             owner = parts[1]
             repo = parts[2]
@@ -78,6 +79,7 @@ this.findProject = function(ID)
     textHelper.log("found " .. #availProjects .. " available projects", "search", true)
     local prefix = ""
     if owner ~= nil then
+        --FIXME for some reason, branch is not being set correctly
         prefix = owner .. "/" .. repo .. "/" .. branch
     end
     textHelper.log("prefix: " .. prefix, "search", true)
@@ -267,6 +269,7 @@ this.update = function(funcArgs, quiet, upgrade)
                 if project.owner == manifest.owner and project.repo == manifest.repo and project.branch == manifest.branch and project.last_commit ~= manifest.last_commit then
                     updatesNeeded = updatesNeeded + 1
                     if upgrade then
+                        --FIXME this should be doing a single project update, not a full manifest update
                         textHelper.log("updating project: " .. project.name, "update", quiet)
                         local sucsess, msg = apiHandler.downloadProject(manifest, project.name, quiet)
                         if not sucsess then
@@ -280,13 +283,15 @@ this.update = function(funcArgs, quiet, upgrade)
             end
         end
     else
-        --all manifest update
+        --all manifests update
+        
         local manifests = apiHandler.getRepoManifests()
         for _, manifestPath in ipairs(manifests) do
             local manifest,msg = apiHandler.getRepoManifestFromPath(manifestPath)
             if manifest == nil then
                 return 0, msg
             end
+            --FIXME the single project update mode expects a project id, not a manifest id
             local id = manifest.owner .. "." .. manifest.repo .. "." .. manifest.branch
             local result, _ = this.update({ id }, quiet, upgrade)
             if result > 0 then
