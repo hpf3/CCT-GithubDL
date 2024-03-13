@@ -252,7 +252,7 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
     end
     if save then
         local savePath = configManager.GetValue("data_dir") ..
-        "/manifests/" .. owner .. "/" .. repo .. "/" .. branch .. ".json"
+            "/manifests/" .. owner .. "/" .. repo .. "/" .. branch .. ".json"
         fileManager.SaveJson(savePath, manifest)
     end
     return manifest
@@ -369,7 +369,7 @@ end
 ---@return string|nil error returns the error, if any
 githubApiHandler.removeProject = function(project)
     textHelper.log("Removing project " ..
-    project.name .. " from " .. project.owner .. "/" .. project.repo .. "/" .. project.branch)
+        project.name .. " from " .. project.owner .. "/" .. project.repo .. "/" .. project.branch)
     local tree = githubApiHandler.Gettree(project.owner, project.repo, project.last_commit)
     ---@type Project
     local manifest = nil
@@ -495,10 +495,14 @@ githubApiHandler.getAvailableProjects = function()
     end
     local availableProjects = {}
     for _, v in ipairs(manifests) do
-        local manifest = fileManager.LoadJson(v)
-        for _, v in ipairs(manifest.projects) do
-            table.insert(availableProjects,
-                manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. "/" .. v.manifest.name)
+        local manifest, msg = fileManager.LoadJson(v)
+        if manifest == nil then
+            textHelper.log("Failed to load manifest: " .. msg)
+        else
+            for _, v in ipairs(manifest.projects) do
+                table.insert(availableProjects,
+                    manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. "/" .. v.manifest.name)
+            end
         end
     end
     return availableProjects
@@ -585,7 +589,7 @@ end
 ---@return boolean areProjectsSame
 githubApiHandler.areProjectsSame = function(project1, project2)
     return project1.owner == project2.owner and project1.repo == project2.repo and project1.branch == project2.branch and
-    project1.name == project2.name
+        project1.name == project2.name
 end
 --#endregion Misc
 
