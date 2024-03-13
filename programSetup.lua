@@ -46,7 +46,7 @@ for k, v in ipairs(manifest.files) do
         print("Failed to download file: " .. path .. " " .. error)
         return
     end
-    local file = fs.open(path, "w")
+    local file = fs.open(pair[1], "w")
     file.write(response.readAll())
     file.close()
     response.close()
