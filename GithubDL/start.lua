@@ -44,10 +44,12 @@ end
 this.findProject = function(ID)
     local apiHandler = libs.apiHandler
     local textHelper = libs.textHelper
+    textHelper.log("searching for: " .. ID, "search", true)
     local name, owner, repo, branch = nil, nil, nil, nil
     --check if the ID is a '.' separated string, if so, split it
     if ID:find("%.") then
         local parts = textHelper.splitString(ID, "%.")
+        textHelper.log("parts: " .. #parts, "search", true)
         if #parts == 4 then
             owner = parts[1]
             repo = parts[2]
@@ -65,6 +67,10 @@ this.findProject = function(ID)
         name = ID
         branch = ""
     end
+    textHelper.log("owner: " .. owner, "search", true)
+    textHelper.log("repo: " .. repo, "search", true)
+    textHelper.log("branch: " .. branch, "search", true)
+    textHelper.log("name: " .. name, "search", true)
     local availProjects = apiHandler.getAvailableProjects()
     if #availProjects == 0 then
         return nil, "No manifests found"
