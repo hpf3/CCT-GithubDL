@@ -8,7 +8,7 @@ remove - uninstalls a package following the install steps in reverse (installer 
 
 you can download the program by running the following command in a CC:T computer:
 ```shell
-wget run https://github.com/hpf3/CCT-GithubDL/raw/main/programSetup.lua
+wget run https://raw.githubusercontent.com/hpf3/CCT-GithubDL/main/programSetup.lua
 ```
 
 if you wish to use the format it should be relatively stable... i may add dependency support in the future, but similar to the installer, it will just be ignored if it doesn't exist.

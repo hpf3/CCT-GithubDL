@@ -1,9 +1,9 @@
 local function install()
-    --TODO: Implement
+    --TODO: Implement startup
     print("Installing GithubDL...")
 end
 local function remove()
-    --TODO: Implement
+    --TODO: Implement startup removal
     print("Removing GithubDL...")
 end
 
