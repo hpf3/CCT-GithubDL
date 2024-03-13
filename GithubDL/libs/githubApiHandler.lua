@@ -343,10 +343,14 @@ githubApiHandler.downloadProject = function(manifest, projectName, quiet)
     }
     --check if the project is already installed
     local found = false
-    for k, v in ipairs(installedProjects) do
-        if v.owner == newProject.owner and v.repo == newProject.repo and v.branch == newProject.branch and v.name == newProject.name then
-            installedProjects[k] = newProject
-            found = true
+    if installedProjects == nil then
+        installedProjects = {}
+    else
+        for k, v in ipairs(installedProjects) do
+            if v.owner == newProject.owner and v.repo == newProject.repo and v.branch == newProject.branch and v.name == newProject.name then
+                installedProjects[k] = newProject
+                found = true
+            end
         end
     end
     if not found then

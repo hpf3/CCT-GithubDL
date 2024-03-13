@@ -346,7 +346,7 @@ end
 
 
 this.help = function (funcArgs)
-    --TODO Implement better
+    --HACK Implement better to provide context for each command
     this.log("Usage: GithubDL <command> [args]")
     this.log("Commands:")
     for key, _ in pairs(this.SWITCH_Commands) do
