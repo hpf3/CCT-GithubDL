@@ -495,13 +495,14 @@ githubApiHandler.getAvailableProjects = function()
     end
     local availableProjects = {}
     for _, v in ipairs(manifests) do
+        ---@type RepoManifest
         local manifest, msg = fileManager.LoadJson(v)
         if manifest == nil then
             textHelper.log("Failed to load manifest: " .. msg)
         else
             for _, v in ipairs(manifest.projects) do
                 table.insert(availableProjects,
-                    manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. "/" .. v.manifest.name)
+                    manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. "/" .. v.name)
             end
         end
     end
