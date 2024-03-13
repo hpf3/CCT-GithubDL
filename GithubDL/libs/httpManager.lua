@@ -40,7 +40,7 @@ local httpManager = {}
 local function isCached(url)
     local cacheDir = configManager.GetValue("web_cache")
     local cacheFile = cacheDir.."/"..base64.encode(url)
-    if fs.Exists(cacheFile) then
+    if fs.exists(cacheFile) then
         return true
     end
     return false

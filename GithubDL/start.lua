@@ -28,7 +28,7 @@ this.loadLibs = function ()
     libs.httpManager = libManager.gethttpManager()
     libs.textHelper = libManager.gettextHelper()
 end
-
+this.loadLibs()
 ---writes a message to stdout and writes it to the main log file
 ---@param message string
 this.log = function(message)
