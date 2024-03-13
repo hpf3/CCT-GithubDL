@@ -1,6 +1,9 @@
---split based on a pattern
+---split based on a pattern
+---@param str string target string
+---@param pat string pattern to split by
+---@return string[] parts
 local function split(str, pat)
-    local t = {} -- NOTE: use {n = 0} in Lua-5.0
+    local t = {}
     local fpat = "(.-)" .. pat
     local last_end = 1
     local s, e, cap = str:find(fpat, 1)
@@ -34,7 +37,7 @@ print("Installing " .. manifest.name .. "...")
 
 --download the files
 for k, v in ipairs(manifest.files) do
-    local pair = split(k, "=")
+    local pair = split(v, "=")
     local path = pair[1]
     local url = baseUrl .. v
     local response, error = http.get(url)
