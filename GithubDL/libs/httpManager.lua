@@ -1,27 +1,63 @@
-local libManager = require("GithubDL.libManager")
+--==============
+--=  Requires  =
+--==============
+--#region Requires
+---@module "GithubDL.libs.libManager"
+local libManager = require("libs.GithubDL.libManager")
 local configManager = libManager.getConfigManager()
 local textHelper = libManager.gettextHelper()
 local fileManager = libManager.getFileManager()
 local base64 = libManager.getBase64()
+--#endregion Requires
+
+--#region Classes
+
+---@alias HeadersTable table<string, string>
+
+---@class ResponsePackage
+---@field headers HeadersTable the response headers
+---@field body string the response body
+---@field status number the response status code
+---@field msg string the response status message
+
+---@class RequestPackage
+---@field url string the request url
+---@field headers HeadersTable the request headers
+
+---@class ConversationPackage
+---@field request RequestPackage the request package
+---@field response ResponsePackage the response package
+
+--#endregion Classes
+
+
+---@class httpManager
 local httpManager = {}
 
---utils
+---check if a url is cached
+---@param url string
+---@return boolean isCached
 local function isCached(url)
     local cacheDir = configManager.GetValue("web_cache")
     local cacheFile = cacheDir.."/"..base64.encode(url)
-    if fileManager.Exists(cacheFile) then
+    if fs.Exists(cacheFile) then
         return true
     end
     return false
 end
 
+---get a cached response
+---@param url string
+---@return ResponsePackage response
 local function getCached(url)
     local cacheDir = configManager.GetValue("web_cache")
     local cacheFile = cacheDir.."/"..base64.encode(url)
     return fileManager.LoadObject(cacheFile)
 end
 
-
+---get the headers to use for a cached request update
+---@param url string
+---@return HeadersTable
 local function getCachedHeaders(url)
     if not isCached(url) then
         return {}
@@ -37,6 +73,9 @@ local function getCachedHeaders(url)
     return headers
 end
 
+---cache a response
+---@param url string
+---@param responsePackage ResponsePackage
 local function cacheResponse(url, responsePackage)
     textHelper.log("Caching response for: "..url, "http", true)
     local cacheDir = configManager.GetValue("web_cache")
@@ -47,6 +86,12 @@ local function cacheResponse(url, responsePackage)
     fileManager.SaveObject(cacheFile, responsePackage)
 end
 
+
+--package functions
+
+---package a response
+---@param response table http response
+---@return ResponsePackage
 local function packageResponse(response)
     local headers = response.getResponseHeaders()
     local body = response.readAll()
@@ -59,6 +104,12 @@ local function packageResponse(response)
     }
     return cache
 end
+
+---package a conversation
+---@param url string
+---@param headers HeadersTable
+---@param response table http response
+---@return ConversationPackage
 local function packageConversation(url,headers,response)
     local cache = {}
     cache.response = packageResponse(response)
@@ -70,6 +121,10 @@ local function packageConversation(url,headers,response)
 end
 
 --status functions
+
+---function to handle a good response
+---@param ConvPackage ConversationPackage
+---@return ResponsePackage response
 local function good(ConvPackage)
     --check if we need to cache the response
     if ConvPackage.response.headers["etag"] ~= nil or ConvPackage.response.headers["last-modified"] ~= nil then
@@ -80,6 +135,10 @@ local function good(ConvPackage)
     return ConvPackage.response
 end
 
+---function to handle a bad response
+---@param ConvPackage ConversationPackage
+---@return ResponsePackage? response
+---@return string? error
 local function bad(ConvPackage)
     --if we are rate limited, wait and retry
     local retryTime = ConvPackage.response.headers["retry-after"]
@@ -117,18 +176,29 @@ local function bad(ConvPackage)
     end
 end
 
+
+---function to handle a forward response
+---@param ConvPackage ConversationPackage
+---@return ResponsePackage? response
+---@return string? error
 local function forward(ConvPackage)
     local newUrl = ConvPackage.response.headers["location"]
     textHelper.log("Forwarding from "..ConvPackage.request.url.." to "..newUrl, "http", true)
     return httpManager.SendHttpGET(newUrl,ConvPackage.request.headers)
 end
 
+---function to handle a useCache response
+---@param ConvPackage ConversationPackage
+---@return ResponsePackage response
 local function useCache(ConvPackage)
     textHelper.log("Using cached response for: "..ConvPackage.request.url, "http", true)
     return getCached(ConvPackage.request.url)
 end
 
 
+
+--status switch
+---@type table<number, fun(ConversationPackage)>
 local SWITCH_httpStatus = {
     [200] = good,
     [201] = good,
@@ -158,6 +228,12 @@ local SWITCH_httpStatus = {
 }
 
 --main GET function
+
+---send a GET request
+---@param url string
+---@param bonusHeaders HeadersTable?
+---@return ResponsePackage? response
+---@return string? error
 httpManager.SendHttpGET = function(url, bonusHeaders)
     local possible = http.checkURL(url)
     if not possible then

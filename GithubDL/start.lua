@@ -1,69 +1,53 @@
---utility functions
-local function log(message)
-    print("[GithubDL] " .. message)
+--method holder (to work around sequential function loading)
+local this = {}
+
+--api holder
+local libs = {}
+
+--======================
+--=  Type Definitions  =
+--======================
+--#region TypeDefinitions
+
+---@alias FuncArgs string[]
+
+--#endregion TypeDefinitions
+--=======================
+--=  Utility Functions  =
+--=======================
+--#region UtilityFunctions
+
+---loads needed libs into the libs var
+this.loadLibs = function ()
+    ---@module "GithubDL.libs.libManager"
+    local libManager = require("libs.GithubDL.libManager")
+    libs.base64 = libManager.getBase64()
+    libs.configManager = libManager.getConfigManager()
+    libs.fileManager = libManager.getFileManager()
+    libs.apiHandler = libManager.getApiHandler()
+    libs.httpManager = libManager.gethttpManager()
+    libs.textHelper = libManager.gettextHelper()
 end
 
---split based on a pattern
-local function split(str, pat)
-    local t = {} -- NOTE: use {n = 0} in Lua-5.0
-    local fpat = "(.-)" .. pat
-    local last_end = 1
-    local s, e, cap = str:find(fpat, 1)
-    while s do
-        if s ~= 1 or cap ~= "" then
-            table.insert(t, cap)
-        end
-        last_end = e + 1
-        s, e, cap = str:find(fpat, last_end)
-    end
-    if last_end <= #str then
-        cap = str:sub(last_end)
-        table.insert(t, cap)
-    end
-    return t
-end
-
--- test if a string starts with a prefix
-local function startsWith(text, prefix)
-    return text:find(prefix, 1, true) == 1
-end
-
-local function setPath()
-    local libsPath = "/libs"
-    local pathEndings = {
-        "/?",
-        "/?.lua",
-        "/?/init.lua"
-    }
-
-    local basePath = package.path
-    local paths = split(basePath, ";")
-    local newpaths = {}
-    --add all existing paths to newpaths, unless they start with the libsPath
-    for _, v in ipairs(paths) do
-        if not startsWith(v, libsPath) then
-            table.insert(newpaths, v)
-        end
-    end
-    --add the new paths
-    for _, v in ipairs(pathEndings) do
-        table.insert(newpaths, libsPath .. v)
-    end
-    --set the new path
-    package.path = table.concat(newpaths, ";")
+---writes a message to stdout and writes it to the main log file
+---@param message string
+this.log = function(message)
+    libs.textHelper.log(message)
 end
 
 
-
-local function findProject(ID)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
-    local textHelper = libManager.gettextHelper()
+---finds the first matching repo manifest and project name for the provided ID
+---ID is in the format of: owner.repo.branch.name, owner.repo.name, or name
+---@param ID string
+---@return RepoManifest? manifest
+---@return Project | string project | error
+this.findProject = function(ID)
+    local apiHandler = libs.apiHandler
+    local textHelper = libs.textHelper
     local name, owner, repo, branch = nil, nil, nil, nil
     --check if the ID is a '.' separated string, if so, split it
     if ID:find("%.") then
-        parts = textHelper.splitString(ID, "%.")
+        local parts = textHelper.splitString(ID, "%.")
         if #parts == 4 then
             owner = parts[1]
             repo = parts[2]
@@ -74,34 +58,34 @@ local function findProject(ID)
             repo = parts[2]
             name = parts[3]
         else
-            log("Invalid ID, must be in the format owner.repo.branch.name, owner.repo.name, or name")
-            return
+            this.log("Invalid ID, must be in the format owner.repo.branch.name, owner.repo.name, or name")
+            return nil, "Invalid ID"
         end
     else
         name = ID
         branch = ""
     end
-    local manifests = apiHandler.getAvailableProjects()
-    if #manifests == 0 then
+    local availProjects = apiHandler.getAvailableProjects()
+    if #availProjects == 0 then
         return nil, "No manifests found"
     end
-    textHelper.log("found " .. #manifests .. " manifests", "search", true)
+    textHelper.log("found " .. #availProjects .. " available projects", "search", true)
     local prefix = ""
     if owner ~= nil then
         prefix = owner .. "/" .. repo .. "/" .. branch
     end
     textHelper.log("prefix: " .. prefix, "search", true)
-    for _, value in ipairs(manifests) do
+    for _, value in ipairs(availProjects) do
         textHelper.log("checking: " .. value, "search", true)
         if textHelper.startsWith(value, prefix) then
             textHelper.log("found: " .. value, "search", true)
             local parts = textHelper.splitString(value, "/")
             local manifest = apiHandler.getRepoManifest(parts[1], parts[2], parts[3])
             for _, project in ipairs(manifest.projects) do
-                textHelper.log("checking: " .. project.manifest.name, "search", true)
-                if project.manifest.name == name then
+                textHelper.log("checking: " .. project.name, "search", true)
+                if project.name == name then
                     textHelper.log("Project found", "search", true)
-                    return manifest, project.manifest.name
+                    return manifest, project
                 end
             end
         end
@@ -109,14 +93,19 @@ local function findProject(ID)
     textHelper.log("Project not found", "search", false)
     return nil, "Project not found"
 end
+--#endregion UtilityFunctions
 
 
---main functions
-local function startup()
-    setPath()
-    --TODO: Verify that needed files and folders exist, then perform updates
-    local libManager = require("GithubDL.libManager")
-    local configManager = libManager.getConfigManager()
+
+--=======================
+--=  Command Functions  =
+--=======================
+--#region CommandFunctions
+
+
+
+this.startup = function()
+    local configManager = libs.configManager
 
     --dir setup
     if not fs.exists(configManager.GetValue("data_dir")) then
@@ -125,39 +114,37 @@ local function startup()
     if not fs.exists(configManager.GetValue("log_dir")) then
         fs.makeDir(configManager.GetValue("log_dir"))
     end
-    if not fs.exists(configManager.GetValue("lib_dir")) then
-        fs.makeDir(configManager.GetValue("lib_dir"))
-    end
     --config init
     configManager.SetConfig(configManager.GetConfig()) -- if the file does not exist, this will create it
 
     --api token warning
     if configManager.GetValue("api_token") == nil then
-        log("No API token set, use 'GithubDL setToken <token>' to set one, api requests will be more limited without one")
+        this.log(
+        "No API token set, use 'GithubDL setToken <token>' to set one, api requests will be more limited without one")
     end
 
     --update
     if configManager.GetValue("auto_update") == "true" then
-        local result,msg = SWITCH_Commands["update"](nil, true, false)
+        local result, msg = this.update({}, true, false)
         if result > 0 then
-            log("Updates needed: " .. result)
+            this.log("Updates needed: " .. result)
         end
         if msg then
-            log("An error occured while getting updates: "..msg)
+            this.log("An error occured while getting updates: " .. msg)
         end
     end
 end
 
 
-local function addRepo(funcArgs)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
+
+
+this.addRepo = function(funcArgs)
+    local apiHandler = libs.apiHandler
 
     local url = funcArgs[1]
     local owner, repo, branch = apiHandler.getRepoFromUrl(url)
     if owner == nil or repo == nil then
-        log("Invalid url")
+        this.log("Invalid url")
         return
     end
     if funcArgs[2] ~= nil then
@@ -166,20 +153,26 @@ local function addRepo(funcArgs)
 
     local manifest, msg = apiHandler.downloadManifest(owner, repo, branch)
     if manifest == nil then
-        log("Failed to download manifest: " .. msg)
+        this.log("Failed to download manifest: " .. msg)
         return
     end
-    log("repo manifest downloaded ( " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. ")")
+    this.log("repo manifest downloaded ( " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. ")")
 end
-local function delRepo(funcArgs)
-    setPath()
+
+
+
+
+---@diagnostic disable-next-line: unused-local
+this.delRepo = function(funcArgs)
     --TODO: Implement
 end
-local function list(funcArgs)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
-    local textHelper = libManager.gettextHelper()
+
+
+
+
+this.list = function(funcArgs)
+    local apiHandler = libs.apiHandler
+    local textHelper = libs.textHelper
     local projects = {}
     if funcArgs[1] == "installed" then
         projects = apiHandler.getInstalledProjects()
@@ -193,19 +186,19 @@ local function list(funcArgs)
 end
 
 
-local function install(funcArgs)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
-    local textHelper = libManager.gettextHelper()
+
+
+this.install = function(funcArgs)
+    local apiHandler = libs.apiHandler
+    local textHelper = libs.textHelper
 
     local ID = funcArgs[1]
     if ID == nil then
-        log("No ID provided")
+        this.log("No ID provided")
         return
     end
     textHelper.log("Installing: " .. ID)
-    local manifest, name = findProject(ID)
+    local manifest, name = this.findProject(ID)
     if manifest == nil then
         textHelper.log("Failed to find project: " .. name, "install", false)
         return
@@ -216,11 +209,18 @@ local function install(funcArgs)
         return
     end
 end
-local function update(funcArgs, quiet, upgrade)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
-    local textHelper = libManager.gettextHelper()
+
+
+
+---updates the manifest and optionally upgrades all outdated projects
+---@param funcArgs FuncArgs
+---@param quiet boolean?
+---@param upgrade boolean?
+---@return number
+---@return string?
+this.update = function(funcArgs, quiet, upgrade)
+    local apiHandler = libs.apiHandler
+    local textHelper = libs.textHelper
 
     if quiet == nil then
         quiet = false
@@ -228,78 +228,63 @@ local function update(funcArgs, quiet, upgrade)
     if upgrade == nil then
         upgrade = false
     end
+    if funcArgs == nil then
+        funcArgs = {}
+    end
 
     local manifest, name = nil, nil
     local ID = funcArgs[1]
     local updatesNeeded = 0
     --single project update
     if ID ~= nil then
-        manifest, name = findProject(ID)
+        manifest, name = this.findProject(ID)
         if manifest == nil then
             textHelper.log("Failed to find project: " .. name, "update", quiet)
-            return
+            return 0, "Failed to find project: " .. name
         end
         local commit, msg = apiHandler.getLatestCommit(manifest.owner, manifest.repo, manifest.branch)
         if commit == nil then
-            return nil, msg
+            return 0, msg
         end
         if manifest.last_commit == commit.sha then
-            textHelper.log("Project is up to date", "update", quiet)
-            return
+            textHelper.log("manifest is up to date", "update", quiet)
         else
-            textHelper.log("updating manifest (" .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch ..
-                ")", "update", false)
+            textHelper.log(
+            "updating manifest (" .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. ")", "update",false)
             local manifest, msg = apiHandler.downloadManifest(manifest.owner, manifest.repo, manifest.branch)
             if manifest == nil then
                 textHelper.log("Failed to update manifest: " .. msg, "update", quiet)
-                return
+                return 0, msg
             end
-            if upgrade then
-                local sucsess, msg = apiHandler.downloadProject(manifest, name, quiet)
-                if not sucsess then
-                    textHelper.log("Failed to update project: " .. msg, "update", quiet)
-                    return
-                end
-            end
-        end
-    else
-        --all projects update
-        local projects = apiHandler.getInstalledProjects()
-        if #projects == 0 then
-            return 0
-        end
-        for _, project in ipairs(projects) do
-            local parts = textHelper.splitString(project, "/")
-            local owner, repo, branch, name = parts[1], parts[2], parts[3], parts[4]
-            --make sure nothing is nil
-            if owner and repo and branch and name then
-                local manifest = apiHandler.getRepoManifest(owner, repo, branch)
-                local commit, msg = apiHandler.getLatestCommit(owner, repo, branch)
-                if commit == nil then
-                    return nil, msg
-                end
-                if manifest.last_commit == commit.sha then
-                    textHelper.log("Project is up to date: " .. name, "update", quiet)
-                else
+            local outdatedProjects = apiHandler.getOutOfDateProjects()
+            for _, project in ipairs(outdatedProjects) do
+                if project.owner == manifest.owner and project.repo == manifest.repo and project.branch == manifest.branch and project.last_commit ~= manifest.last_commit then
                     updatesNeeded = updatesNeeded + 1
-                    textHelper.log("updating manifest (" .. owner .. "/" .. repo .. "/" .. branch .. ")", "update", quiet)
-                    local manifest, msg = apiHandler.downloadManifest(owner, repo, branch)
-                    if manifest == nil then
-                        textHelper.log("Failed to update manifest: " .. msg, "update", quiet)
-                        return
-                    end
                     if upgrade then
-                        local sucsess, msg = apiHandler.downloadProject(manifest, name, quiet)
+                        textHelper.log("updating project: " .. project.name, "update", quiet)
+                        local sucsess, msg = apiHandler.downloadProject(manifest, project.name, quiet)
                         if not sucsess then
                             textHelper.log("Failed to update project: " .. msg, "update", quiet)
                         else
                             updatesNeeded = updatesNeeded - 1
-                            textHelper.log("Project updated: " .. name, "update", quiet)
+                            textHelper.log("Project updated: " .. project.name, "update", quiet)
                         end
                     end
                 end
-            else
-                textHelper.log("Invalid project: " .. project, "update", quiet)
+            end
+        end
+    else
+        --all manifest update
+        local manifests = apiHandler.getRepoManifests()
+        for _, manifestPath in ipairs(manifests) do
+            local manifest,msg = apiHandler.getRepoManifestFromPath(manifestPath)
+            if manifest == nil then
+                return 0, msg
+            end
+            local id = manifest.owner .. "." .. manifest.repo .. "." .. manifest.branch
+            local result, _ = this.update({ id }, quiet, upgrade)
+            if result > 0 then
+                updatesNeeded = updatesNeeded + result
             end
         end
     end
@@ -311,74 +296,111 @@ local function update(funcArgs, quiet, upgrade)
     return updatesNeeded
 end
 
-local function remove(funcArgs)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local apiHandler = libManager.getApiHandler()
-    local textHelper = libManager.gettextHelper()
+
+
+
+this.remove = function(funcArgs)
+    local apiHandler = libs.apiHandler
+    local textHelper = libs.textHelper
 
     local ID = funcArgs[1]
     if ID == nil then
-        log("No ID provided")
+        this.log("No ID provided")
         return
     end
     textHelper.log("Uninstalling: " .. ID)
-    local manifest, name = findProject(ID)
+
+    local manifest, name = this.findProject(ID)
     if manifest == nil then
         textHelper.log("Failed to find project: " .. name, "install", false)
         return
     end
-    local sucsess, msg = apiHandler.removeProject(manifest, name)
+
+    local installedProjects = apiHandler.getInstalledProjects()
+
+    ---@type ProjectDefinition
+    local targetProject = nil
+    for _, project in ipairs(installedProjects) do
+        if apiHandler.areProjectsSame(name,project) then
+            targetProject = project
+        end
+    end
+    local sucsess, msg = apiHandler.removeProject(targetProject)
     if not sucsess then
         textHelper.log("Failed to remove project: " .. msg, "install", false)
         return
     end
 end
+
+
 local function setToken(funcArgs)
-    setPath()
-    local libManager = require("GithubDL.libManager")
-    local configManager = libManager.getConfigManager()
+    local configManager = libs.configManager
     local token = funcArgs[1]
     if token == nil then
-        log("No token provided")
+        this.log("No token provided")
         return
     end
     configManager.SetValue("api_token", token)
-    log("Token set")
+    this.log("Token set")
 end
 
 
---Main program
-local args = { ... }
-if #args < 1 then
-    log("use 'githubdl help' for help")
-    return
+this.help = function (funcArgs)
+    --TODO Implement better
+    this.log("Usage: GithubDL <command> [args]")
+    this.log("Commands:")
+    for key, _ in pairs(this.SWITCH_Commands) do
+        this.log(key)
+    end
 end
-local command = table.remove(args, 1)
-local commandArgs = args
+--#endregion CommandFunctions
 
-SWITCH_Commands = {
-    ["startup"] = startup,
-    ["addRepo"] = addRepo,
-    ["delRepo"] = delRepo,
-    ["list"] = list,
-    ["install"] = install,
-    ["update"] = update,
+
+
+--=====================
+--=    Data Tables    =
+--=====================
+
+
+---@type table<string, fun(FuncArgs):any?,string?>
+this.SWITCH_Commands = {
+    ["startup"] = this.startup,
+    ["addRepo"] = this.addRepo,
+    ["delRepo"] = this.delRepo,
+    ["list"] = this.list,
+    ["install"] = this.install,
+    ["update"] = this.update,
     ["upgrade"] = function(args)
-        return update(args, false, true)
+        return this.update(args, false, true)
     end,
-    ["remove"] = remove,
-    ["help"] = help,
+    ["remove"] = this.remove,
+    ["help"] = this.help,
     ["setToken"] = setToken
 }
 
-if SWITCH_Commands[command] then
-    local _,msg = SWITCH_Commands[command](commandArgs)
-    if msg then
-        log(msg)
+
+--Main program
+local info = debug.getinfo(1)
+if info.name ~= nil then
+    if info.name == "?" then
+        return this.SWITCH_Commands
     end
-else
-    log("Invalid command")
 end
 
-return SWITCH_Commands
+
+
+local args = { ... }
+local command = table.remove(args, 1)
+local commandArgs = args
+
+if command ~= nil then
+    if this.SWITCH_Commands[command] then
+        local _, msg = this.SWITCH_Commands[command](commandArgs)
+        if msg then
+            this.log(msg)
+        end
+    else
+        this.log("Invalid command: '"..command.."', use 'GithubDL help' for help")
+    end
+end
+

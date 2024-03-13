@@ -1,6 +1,9 @@
+---@class fileManager
 local fileManager = {}
 
-
+---save an object to a file
+---@param path string
+---@param data any
 fileManager.SaveObject = function(path, data)
     if not fs.exists(fs.getDir(path)) then
         fs.makeDir(fs.getDir(path))
@@ -10,6 +13,10 @@ fileManager.SaveObject = function(path, data)
     file.close()
 end
 
+---load an object from a file
+---@param path string
+---@return any? data
+---@return string? error
 fileManager.LoadObject = function(path)
     if not fs.exists(path) then
         return nil, "File not found"
@@ -20,6 +27,9 @@ fileManager.LoadObject = function(path)
     return textutils.unserialize(data)
 end
 
+---save a table to a file as json
+---@param path string
+---@param data table
 fileManager.SaveJson = function(path, data)
     if not fs.exists(fs.getDir(path)) then
         fs.makeDir(fs.getDir(path))
@@ -29,6 +39,11 @@ fileManager.SaveJson = function(path, data)
     file.close()
 end
 
+
+---load a table from a file as json
+---@param path string
+---@return table? data
+---@return string? error
 fileManager.LoadJson = function(path)
     if not fs.exists(path) then
         return nil, "File not found"
@@ -39,6 +54,9 @@ fileManager.LoadJson = function(path)
     return textutils.unserializeJSON(data)
 end
 
+---write a line to a file
+---@param path string
+---@param data string
 fileManager.AppendLine = function(path, data)
     if not fs.exists(fs.getDir(path)) then
         fs.makeDir(fs.getDir(path))
@@ -48,6 +66,10 @@ fileManager.AppendLine = function(path, data)
     file.close()
 end
 
+
+---get all files in a directory and its subdirectories
+---@param dir string
+---@return string[] fileList list of file paths
 fileManager.GetFilesRecursive = function(dir)
     local files = fs.list(dir)
     local allFiles = {}
@@ -65,6 +87,9 @@ fileManager.GetFilesRecursive = function(dir)
     return allFiles
 end
 
+---save a file
+---@param path string
+---@param data string
 fileManager.SaveFile = function(path, data)
     if not fs.exists(fs.getDir(path)) then
         fs.makeDir(fs.getDir(path))
@@ -74,8 +99,8 @@ fileManager.SaveFile = function(path, data)
     file.close()
 end
 
-fileManager.Exists = fs.exists
-
+---delete a file and its parent directories if they are empty
+---@param path string
 fileManager.Delete = function (path)
     fs.delete(path)
     local dir = fs.getDir(path)

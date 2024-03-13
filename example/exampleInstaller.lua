@@ -1,9 +1,7 @@
 local function install()
-    --TODO: Implement
     print("Installing example...")
 end
 local function remove()
-    --TODO: Implement
     print("Removing example...")
 end
 

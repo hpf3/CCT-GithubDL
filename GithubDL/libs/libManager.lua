@@ -1,7 +1,13 @@
-local baseRequire = "GithubDL."
+local baseRequire = "libs.GithubDL."
 local basePath = "/libs/GithubDL/"
+
+---@class libManager
 local libManager = {}
---wrapper for require
+
+---wrapper for require, gets the library named, prefixing the base libs path
+---@param libName string
+---@return any?
+---@return string?
 local function getLib(libName)
     --test if the lib is available to load
     local file = basePath..libName..".lua"
@@ -16,33 +22,44 @@ end
 libManager.getLib = getLib
 
 --shortcuts for the most used libs
-local function getApiHandler()
-    return getLib("githubApiHandler")
+libManager.getApiHandler = function()
+    ---@module "GithubDL.libs.githubApiHandler"
+    local lib = getLib("githubApiHandler")
+    return lib
 end
-libManager.getApiHandler = getApiHandler
 
-local function getFileManager()
-    return getLib("fileManager")
-end
-libManager.getFileManager = getFileManager
 
-local function getConfigManager()
-    return getLib("configManager")
+libManager.getFileManager = function()
+    ---@module "GithubDL.libs.fileManager"
+    local lib = getLib("fileManager")
+    return lib
 end
-libManager.getConfigManager = getConfigManager
 
-local function gettextHelper()
-    return getLib("textHelper")
-end
-libManager.gettextHelper = gettextHelper
 
-local function getBase64()
-    return getLib("base64")
+libManager.getConfigManager = function()
+    ---@module "GithubDL.libs.configManager"
+    local lib = getLib("configManager")
+    return lib
 end
-libManager.getBase64 = getBase64
 
-local function gethttpManager()
-    return getLib("httpManager")
+
+libManager.gettextHelper = function()
+    ---@module "GithubDL.libs.textHelper"
+    local lib = getLib("textHelper")
+    return lib
 end
-libManager.gethttpManager = gethttpManager
+
+
+libManager.getBase64 = function()
+    ---@module "GithubDL.libs.base64"
+    local lib = getLib("base64")
+    return lib
+end
+
+libManager.gethttpManager = function()
+    ---@module "GithubDL.libs.httpManager"
+    local lib = getLib("httpManager")
+    return lib
+end
+
 return libManager

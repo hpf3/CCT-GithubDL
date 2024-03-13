@@ -1,7 +1,19 @@
-local libManager = require("GithubDL.libManager")
+--#region Requires
+---@module "GithubDL.libs.libManager"
+local libManager = require("libs.GithubDL.libManager")
 local fileManager = libManager.getFileManager()
+--#endregion Requires
+
+--#region Class Definition
+
+---@alias ConfigTable table<string, string>
+
+--#endregion Class Definition
+---@class ConfigManager
 local configManager = {}
 local configFile = "/config.cfg"
+
+---@type ConfigTable
 local defaultConfig = {
     ["api_token"] = "",
     ["data_dir"] = "/data/GithubDL",
@@ -11,10 +23,17 @@ local defaultConfig = {
     ["web_cache"] = "/data/GithubDL/webCache",
     ["auto_update"] = "true"
 }
---file functions
+
+--#region file functions
+
+---save the config to a file
+---@param data ConfigTable
 local SaveConfig = function(data)
     fileManager.SaveObject(defaultConfig["data_dir"]..configFile, data)
 end
+
+---load the config from a file
+---@return ConfigTable
 local LoadConfig = function()
     local config = fileManager.LoadObject(defaultConfig["data_dir"]..configFile)
     if config == nil then
@@ -23,12 +42,23 @@ local LoadConfig = function()
     return config
 end
 
--- config functions
+--#endregion file functions
+
+--#region config functions
+
+---set a value in the config
+---@param key string
+---@param value string
 configManager.SetValue = function(key, value)
     local config = LoadConfig()
     config[key] = value
     SaveConfig(config)
 end
+
+---get a value from the config
+---@param key string
+---@return string? value
+---@return string? error
 configManager.GetValue = function(key)
     local config = LoadConfig()
     if config[key] == nil then
@@ -40,6 +70,9 @@ configManager.GetValue = function(key)
     end
     return config[key]
 end
+
+---get the entire config table
+---@return ConfigTable
 configManager.GetConfig = function()
     local config = defaultConfig
     local loadedConfig = LoadConfig()
@@ -48,6 +81,9 @@ configManager.GetConfig = function()
     end
     return config
 end
+
+---set the entire config table (overwrites the entire config)
+---@param data ConfigTable
 configManager.SetConfig = function(data)
     SaveConfig(data)
 end
