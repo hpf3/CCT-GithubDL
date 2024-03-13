@@ -490,6 +490,9 @@ end
 ---@return string[] availableProjects list of strings representing the available projects
 githubApiHandler.getAvailableProjects = function()
     local manifests = githubApiHandler.getRepoManifests()
+    if manifests == nil then
+        manifests = {}
+    end
     local availableProjects = {}
     for _, v in ipairs(manifests) do
         local manifest = fileManager.LoadJson(v)
