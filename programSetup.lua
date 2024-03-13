@@ -22,7 +22,7 @@ local function split(str, pat)
 end
 
 --the base url for the project, if you change this, keep in mind whether or not you need a trailing slash based on your manifest
-local baseUrl = "https://github.com/hpf3/CCT-GithubDL/raw/main"
+local baseUrl = "https://raw.githubusercontent.com/hpf3/CCT-GithubDL/main"
 local manifestPath = "/GithubDL.GDLManifest"
 
 --grab the manifest
@@ -40,7 +40,7 @@ for k, v in ipairs(manifest.files) do
     local pair = split(v, "=")
     local path = pair[2] --i don't know why this is backwards, but it is.
     print("Downloading: " .. path .. " to " .. pair[1])
-    local url = baseUrl .. v
+    local url = baseUrl .. path
     local response, error = http.get(url)
     if response == nil then
         print("Failed to download file: " .. path .. " " .. error)
