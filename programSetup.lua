@@ -38,8 +38,8 @@ print("Installing " .. manifest.name .. "...")
 --download the files
 for k, v in ipairs(manifest.files) do
     local pair = split(v, "=")
-    local path = pair[1]
-    print("Downloading: " .. path .. " to " .. pair[2])
+    local path = pair[2] --i don't know why this is backwards, but it is.
+    print("Downloading: " .. path .. " to " .. pair[1])
     local url = baseUrl .. v
     local response, error = http.get(url)
     if response == nil then
