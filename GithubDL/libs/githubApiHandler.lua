@@ -201,9 +201,10 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
         return nil, msg
     end
     manifest.last_commit = commit.sha
-
-    if oldManifest.last_commit == manifest.last_commit then
-        return oldManifest
+    if oldManifest ~= nil then
+        if oldManifest.last_commit == manifest.last_commit then
+            return oldManifest
+        end
     end
 
     textHelper.log("Downloading manifest for " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
@@ -250,7 +251,8 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
         end
     end
     if save then
-        local savePath = configManager.GetValue("data_dir") .. "/manifests/" .. owner .. "/" .. repo .. "/" .. branch .. ".json"
+        local savePath = configManager.GetValue("data_dir") ..
+        "/manifests/" .. owner .. "/" .. repo .. "/" .. branch .. ".json"
         fileManager.SaveJson(savePath, manifest)
     end
     return manifest
@@ -269,10 +271,12 @@ githubApiHandler.downloadProject = function(manifest, projectName, quiet)
         quiet = false
     end
     textHelper.log(
-        "Downloading project " .. projectName .. " from " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch, "githubApiHandler.downloadProject", quiet)
+        "Downloading project " ..
+        projectName .. " from " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
+        "githubApiHandler.downloadProject", quiet)
 
-        ---@type Project
-        local project = nil
+    ---@type Project
+    local project = nil
     for _, v in ipairs(manifest.projects) do
         if v.name == projectName then
             project = v
@@ -364,13 +368,14 @@ end
 ---@return boolean? didComplete returns true if it finishes, nil otherwise
 ---@return string|nil error returns the error, if any
 githubApiHandler.removeProject = function(project)
-    textHelper.log("Removing project " .. project.name .. " from " .. project.owner .. "/" .. project.repo .. "/" .. project.branch)
+    textHelper.log("Removing project " ..
+    project.name .. " from " .. project.owner .. "/" .. project.repo .. "/" .. project.branch)
     local tree = githubApiHandler.Gettree(project.owner, project.repo, project.last_commit)
     ---@type Project
     local manifest = nil
     --scan the tree for the project definition
     for _, file in ipairs(tree.tree) do
-        if file.type == "blob" and textHelper.endsWith(file.path,manifestExtension) then
+        if file.type == "blob" and textHelper.endsWith(file.path, manifestExtension) then
             local content = GetFile64(file.url)
             ---@type Project
             local tmpManifest = textutils.unserializeJSON(content)
@@ -419,7 +424,7 @@ githubApiHandler.removeProject = function(project)
     --update installed projects list
     local installedProjects = githubApiHandler.getInstalledProjects()
     for i = 1, #installedProjects do
-        if githubApiHandler.areProjectsSame(installedProjects[i],project) then
+        if githubApiHandler.areProjectsSame(installedProjects[i], project) then
             table.remove(installedProjects, i)
             break
         end
@@ -576,7 +581,8 @@ end
 ---@param project2 Project | ProjectDefinition
 ---@return boolean areProjectsSame
 githubApiHandler.areProjectsSame = function(project1, project2)
-    return project1.owner == project2.owner and project1.repo == project2.repo and project1.branch == project2.branch and project1.name == project2.name
+    return project1.owner == project2.owner and project1.repo == project2.repo and project1.branch == project2.branch and
+    project1.name == project2.name
 end
 --#endregion Misc
 
