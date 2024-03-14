@@ -27,7 +27,7 @@ end
 
 
 local function install()
-    print("Installing GithubDL...")
+    print("[Installer] Installing GithubDL...")
     
     --create the needed directories
     local dirs = {

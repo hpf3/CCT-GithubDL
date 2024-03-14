@@ -225,7 +225,7 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
             end
         end
     end
-    textHelper.log("Found " .. count .. " manifest files", "githubApiHandler.downloadManifest", true)
+    textHelper.log("Found " .. count .. " projects", "githubApiHandler.downloadManifest", false)
     manifest.projects = {}
     for k, v in pairs(files) do
         local project = {}
@@ -243,7 +243,7 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
             textHelper.log("Failed content: " .. content, "githubApiHandler.downloadManifest", true)
             textHelper.log("Failed reason: " .. msg, "githubApiHandler.downloadManifest", true)
         else
-            textHelper.log("found project: " .. manifestData.name)
+            textHelper.log("found project: " .. manifestData.name, "githubApiHandler.downloadManifest", true)
             for k, v in pairs(manifestData) do
                 project[k] = v
             end
@@ -279,7 +279,7 @@ githubApiHandler.downloadProject = function(projectDef, quiet)
     textHelper.log(
         "Downloading project " ..
         projectDef.name .. " from " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
-        "githubApiHandler.downloadProject", quiet)
+        "githubApiHandler.downloadProject", false)
 
     ---@type Project
     local project = nil
