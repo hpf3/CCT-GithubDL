@@ -200,7 +200,7 @@ this.install = function(funcArgs)
         return
     end
     textHelper.log("Installing: " .. ID)
-    local manifest, project,msg = this.findProject(ID)
+    local manifest, project, msg = this.findProject(ID)
     if manifest == nil then
         textHelper.log("Failed to find project: " .. msg, "install", false)
         return
@@ -291,7 +291,7 @@ this.remove = function(funcArgs)
     end
     textHelper.log("Uninstalling: " .. ID)
 
-    local manifest, project,msg = this.findProject(ID)
+    local manifest, project, msg = this.findProject(ID)
     if manifest == nil then
         textHelper.log("Failed to find project: " .. msg, "install", false)
         return
@@ -376,10 +376,16 @@ this.SWITCH_Commands = {
 local function completion(shell, pos, text, previousText)
     local completions = {}
     if pos == 1 then
-        for key, _ in pairs(this.SWITCH_Commands) do
-            if textHelper.startsWith(key, text) then
-                local remaining = key:sub(#text + 1)
-                table.insert(completions, remaining)
+        if text == "" then
+            for key, _ in pairs(this.SWITCH_Commands) do
+                table.insert(completions, key)
+            end
+        else
+            for key, _ in pairs(this.SWITCH_Commands) do
+                if textHelper.startsWith(key, text) then
+                    local remaining = key:sub(#text + 1)
+                    table.insert(completions, remaining)
+                end
             end
         end
     end
