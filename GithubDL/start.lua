@@ -118,16 +118,18 @@ this.startup = function()
     configManager.SetConfig(configManager.GetConfig()) -- if the file does not exist, this will create it
 
     --api token warning
-    if configManager.GetValue("api_token") == nil then
+    if configManager.GetValue("api_token") == "" then
         this.log(
             "No API token set, use 'GithubDL setToken <token>' to set one, api requests will be more limited without one")
     end
 
     --update
-    if configManager.GetValue("auto_update") == "true" then
+    if configManager.GetValue("auto_update") == "true" and configManager.GetValue("api_token") ~= "" then
         local result, msg = this.update({}, true)
         if result > 0 then
             this.log("Updates done: " .. result)
+        else
+            this.log("No updates done")
         end
         if msg then
             this.log("An error occured while getting updates: " .. msg)

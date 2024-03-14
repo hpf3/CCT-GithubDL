@@ -3,7 +3,7 @@ local STARTUP_LABEL_END = "--[GithubDL:end] Do Not Remove"
 local STARTUP_TEMPLATE = [[--GithubDL startup code
 local GithubDL = require("GithubDL")
 GithubDL.commands["startup"]()
-shell.setCompletionFunction("GithubDL", GithubDL.completion)]]
+shell.setCompletionFunction("/GithubDL.lua", GithubDL.completion)]]
 
 local function getStartup()
     local counter = 0
