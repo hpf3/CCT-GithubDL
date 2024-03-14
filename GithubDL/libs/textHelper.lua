@@ -52,9 +52,15 @@ textHelper.log = function(message, logName, quiet)
    if not quiet then
       print("[GithubDL] " .. message)
    end
+
+   --file logging
    local libManager = require("libs.GithubDL.libManager")
    local configManager = libManager.getConfigManager()
 
+   --check if logging is enabled
+   if configManager.GetValue("log") ~= "true" then
+      return
+   end
    local logDir = configManager.GetValue("log_dir")
    if logName == nil then
       logName = "main"

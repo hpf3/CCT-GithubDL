@@ -208,7 +208,7 @@ githubApiHandler.downloadManifest = function(owner, repo, branch, save)
     end
 
     textHelper.log("Downloading manifest for " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
-        "githubApiHandler.downloadManifest", true)
+        "githubApiHandler.downloadManifest", false)
     local tree, error = githubApiHandler.Gettree(owner, repo, branch)
     if tree == nil then
         return nil, error

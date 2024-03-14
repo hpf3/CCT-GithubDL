@@ -21,7 +21,8 @@ local defaultConfig = {
     ["lib_dir"] = "/libs/GithubDL",
     ["installed_projects"] = "/data/GithubDL/installedProjects.cfg",
     ["web_cache"] = "/data/GithubDL/webCache",
-    ["auto_update"] = "true"
+    ["auto_update"] = "true",
+    ["log"] = "true",
 }
 
 --#region file functions
