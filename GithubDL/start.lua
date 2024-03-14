@@ -1,8 +1,6 @@
 --method holder (to work around sequential function loading)
 local this = {}
 
---api holder
-local libs = {}
 
 --======================
 --=  Type Definitions  =
@@ -19,11 +17,8 @@ local libs = {}
 
 ---@module "GithubDL.libs.libManager"
 local libManager = require("libs.GithubDL.libManager")
-local base64 = libManager.getBase64()
 local configManager = libManager.getConfigManager()
-local fileManager = libManager.getFileManager()
 local apiHandler = libManager.getApiHandler()
-local httpManager = libManager.gethttpManager()
 local textHelper = libManager.gettextHelper()
 ---writes a message to stdout and writes it to the main log file
 ---@param message string
@@ -203,12 +198,18 @@ this.install = function(funcArgs)
         return
     end
     textHelper.log("Installing: " .. ID)
-    local manifest, name = this.findProject(ID)
+    local manifest, project,msg = this.findProject(ID)
     if manifest == nil then
-        textHelper.log("Failed to find project: " .. name, "install", false)
+        textHelper.log("Failed to find project: " .. msg, "install", false)
         return
     end
-    local sucsess, msg = apiHandler.downloadProject(manifest, name.name)
+    local projectDef = {
+        name = project.name,
+        owner = manifest.owner,
+        repo = manifest.repo,
+        branch = manifest.branch
+    }
+    local sucsess, msg = apiHandler.downloadProject(projectDef)
     if not sucsess then
         textHelper.log("Failed to download project: " .. msg, "install", false)
         return
@@ -218,10 +219,11 @@ end
 
 
 ---Updates the manifests and updates any installed_projects.
----@param funcArgs FuncArgs -- Additional arguments, required for some commands, not used for this command
+---@param funcArgs FuncArgs -- here for positional argument consistency, not used
 ---@param quiet boolean? -- If true, minimizes the logging output
 ---@return number -- Number of updates performed
 ---@return string? -- Error message, if any
+---@diagnostic disable-next-line: unused-local
 this.update = function(funcArgs, quiet)
     local apiHandler = apiHandler
     local textHelper = textHelper
@@ -254,7 +256,7 @@ this.update = function(funcArgs, quiet)
                         }
                         if apiHandler.areProjectsSame(installedProject, projectDef) then
                             if manifest.last_commit ~= installedProject.last_commit then
-                                local sucsess, msg = apiHandler.downloadProject(manifest, installedProject, quiet)
+                                local sucsess, msg = apiHandler.downloadProject(installedProject, quiet)
                                 if not sucsess then
                                     textHelper.log("Failed to update project: " .. msg, "update", false)
                                 else
@@ -287,19 +289,24 @@ this.remove = function(funcArgs)
     end
     textHelper.log("Uninstalling: " .. ID)
 
-    local manifest, name = this.findProject(ID)
+    local manifest, project,msg = this.findProject(ID)
     if manifest == nil then
-        textHelper.log("Failed to find project: " .. name, "install", false)
+        textHelper.log("Failed to find project: " .. msg, "install", false)
         return
     end
-
+    local projectDef = {
+        name = project.name,
+        owner = manifest.owner,
+        repo = manifest.repo,
+        branch = manifest.branch
+    }
     local installedProjects = apiHandler.getInstalledProjects()
 
     ---@type ProjectDefinition
     local targetProject = nil
-    for _, project in ipairs(installedProjects) do
-        if apiHandler.areProjectsSame(name, project) then
-            targetProject = project
+    for _, projectDefinst in ipairs(installedProjects) do
+        if apiHandler.areProjectsSame(projectDef, projectDefinst) then
+            targetProject = projectDefinst
         end
     end
     local sucsess, msg = apiHandler.removeProject(targetProject)
@@ -322,6 +329,7 @@ local function setToken(funcArgs)
 end
 
 
+---@diagnostic disable-next-line: unused-local
 this.help = function(funcArgs)
     --HACK Implement better to provide context for each command
     this.log("Usage: GithubDL <command> [args]")
@@ -362,6 +370,7 @@ this.SWITCH_Commands = {
 ---@param text string
 ---@param previousText string[]
 ---@return string[] possible_completions the possible completions
+---@diagnostic disable-next-line: unused-local
 local function completion(shell, pos, text, previousText)
     local completions = {}
     if pos == 1 then

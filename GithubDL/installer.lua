@@ -45,6 +45,7 @@ local function install()
 
     --remove the old startup code
     if startPos ~= 0 and endPos ~= 0 then
+---@diagnostic disable-next-line: unused-local
         for i = startPos, endPos do
             table.remove(content, startPos)
         end
@@ -71,6 +72,7 @@ local function remove()
     end
 
     --remove the old startup code
+---@diagnostic disable-next-line: unused-local
     for i = startPos, endPos do
         table.remove(content, startPos)
     end

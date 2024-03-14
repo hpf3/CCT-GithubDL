@@ -260,25 +260,31 @@ end
 
 
 
----installs the given project from the given manifest
----@param manifest RepoManifest the manifest for the repository to download from
----@param projectName ProjectDefinition the name of the project as it appears in the manifest
+---installs the given project
+---@param projectDef ProjectDefinition definition of the project to download
 ---@param quiet boolean? whether or not to write to the console, default: false
 ---@return boolean? didComplete returns true if it finishes, nil otherwise
 ---@return string|nil error returns the error, if any
-githubApiHandler.downloadProject = function(manifest, projectName, quiet)
+githubApiHandler.downloadProject = function(projectDef, quiet)
     if quiet == nil then
         quiet = false
     end
+    local manifest, msg = githubApiHandler.getRepoManifestFromPath(configManager.GetValue("data_dir") .. "/manifests/" .. projectDef.owner .. "/" .. projectDef.repo .. "/" .. projectDef.branch .. ".json")
+    if manifest == nil then
+        manifest, msg = githubApiHandler.downloadManifest(projectDef.owner, projectDef.repo, projectDef.branch)
+        if manifest == nil then
+            return nil, msg
+        end
+    end
     textHelper.log(
         "Downloading project " ..
-        projectName .. " from " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
+        projectDef.name .. " from " .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch,
         "githubApiHandler.downloadProject", quiet)
 
     ---@type Project
     local project = nil
     for _, v in ipairs(manifest.projects) do
-        if v.name == projectName then
+        if v.name == projectDef.name then
             project = v
             break
         end
