@@ -405,6 +405,10 @@ local command = table.remove(args, 1)
 local commandArgs = args
 
 if command ~= nil then
+    if command == "GithubDL" then
+        --probably missed the api catch above, so return the api table
+        return ApiTable
+    end
     if this.SWITCH_Commands[command] then
         local _, msg = this.SWITCH_Commands[command](commandArgs)
         if msg then
