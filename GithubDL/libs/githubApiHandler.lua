@@ -589,8 +589,8 @@ githubApiHandler.getRepoFromUrl = function(url)
 end
 
 ---tests if two projects are the same
----@param project1 Project | ProjectDefinition
----@param project2 Project | ProjectDefinition
+---@param project1 ProjectDefinition
+---@param project2 ProjectDefinition
 ---@return boolean areProjectsSame
 githubApiHandler.areProjectsSame = function(project1, project2)
     return project1.owner == project2.owner and project1.repo == project2.repo and project1.branch == project2.branch and

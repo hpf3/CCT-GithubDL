@@ -40,7 +40,8 @@ end
 ---ID is in the format of: owner.repo.branch.name, owner.repo.name, or name
 ---@param ID string
 ---@return RepoManifest? manifest
----@return Project | string project | error
+---@return Project? project
+---@return string? errorMsg
 this.findProject = function(ID)
     local apiHandler = libs.apiHandler
     local textHelper = libs.textHelper
@@ -62,7 +63,7 @@ this.findProject = function(ID)
             name = parts[3]
         else
             this.log("Invalid ID, must be in the format owner.repo.branch.name, owner.repo.name, or name")
-            return nil, "Invalid ID"
+            return nil,nil, "Invalid ID"
         end
     else
         name = ID
@@ -74,7 +75,7 @@ this.findProject = function(ID)
     textHelper.log("name: " .. name, "search", true)
     local availProjects = apiHandler.getAvailableProjects()
     if #availProjects == 0 then
-        return nil, "No manifests found"
+        return nil,nil, "No manifests found"
     end
     textHelper.log("found " .. #availProjects .. " available projects", "search", true)
     local prefix = ""
@@ -99,7 +100,7 @@ this.findProject = function(ID)
         end
     end
     textHelper.log("Project not found", "search", false)
-    return nil, "Project not found"
+    return nil,nil, "Project not found"
 end
 --#endregion UtilityFunctions
 
@@ -133,9 +134,9 @@ this.startup = function()
 
     --update
     if configManager.GetValue("auto_update") == "true" then
-        local result, msg = this.update({}, true, false)
+        local result, msg = this.update({}, true)
         if result > 0 then
-            this.log("Updates needed: " .. result)
+            this.log("Updates done: " .. result)
         end
         if msg then
             this.log("An error occured while getting updates: " .. msg)
@@ -220,92 +221,61 @@ end
 
 
 
----updates the manifest and optionally upgrades all outdated projects
----@param funcArgs FuncArgs
----@param quiet boolean?
----@param upgrade boolean?
----@return number
----@return string?
-this.update = function(funcArgs, quiet, upgrade)
+---Updates the manifests and updates any installed_projects.
+---@param funcArgs FuncArgs -- Additional arguments, required for some commands, not used for this command
+---@param quiet boolean? -- If true, minimizes the logging output
+---@return number -- Number of updates performed
+---@return string? -- Error message, if any
+this.update = function(funcArgs, quiet)
     local apiHandler = libs.apiHandler
     local textHelper = libs.textHelper
 
-    if quiet == nil then
-        quiet = false
-    end
-    if upgrade == nil then
-        upgrade = false
-    end
-    if funcArgs == nil then
-        funcArgs = {}
-    end
+    if quiet == nil then quiet = false end
 
-    local manifest, name = nil, nil
-    local ID = funcArgs[1]
-    local updatesNeeded = 0
-    --single project update
-    if ID ~= nil then
-        manifest, name = this.findProject(ID)
-        if manifest == nil then
-            textHelper.log("Failed to find project: " .. name, "update", quiet)
-            return 0, "Failed to find project: " .. name
-        end
-        local commit, msg = apiHandler.getLatestCommit(manifest.owner, manifest.repo, manifest.branch)
-        if commit == nil then
-            return 0, msg
-        end
-        if manifest.last_commit == commit.sha then
-            textHelper.log("manifest is up to date", "update", quiet)
+    local updatesDone = 0
+
+    local manifests = apiHandler.getRepoManifests()
+    if #manifests == 0 then
+        return 0, "No manifests found"
+    end
+    for _, manifestPath in ipairs(manifests) do
+        local manifest, msg = apiHandler.getRepoManifestFromPath(manifestPath)
+        if not manifest then
+            textHelper.log("Failed to locate manifest: " .. msg, "update", false)
         else
-            textHelper.log(
-            "updating manifest (" .. manifest.owner .. "/" .. manifest.repo .. "/" .. manifest.branch .. ")", "update",false)
-            local manifest, msg = apiHandler.downloadManifest(manifest.owner, manifest.repo, manifest.branch)
-            if manifest == nil then
-                textHelper.log("Failed to update manifest: " .. msg, "update", quiet)
-                return 0, msg
-            end
-            local outdatedProjects = apiHandler.getOutOfDateProjects()
-            for _, project in ipairs(outdatedProjects) do
-                if project.owner == manifest.owner and project.repo == manifest.repo and project.branch == manifest.branch and project.last_commit ~= manifest.last_commit then
-                    updatesNeeded = updatesNeeded + 1
-                    if upgrade then
-                        --FIXME this should be doing a single project update, not a full manifest update
-                        textHelper.log("updating project: " .. project.name, "update", quiet)
-                        local sucsess, msg = apiHandler.downloadProject(manifest, project.name, quiet)
-                        if not sucsess then
-                            textHelper.log("Failed to update project: " .. msg, "update", quiet)
-                        else
-                            updatesNeeded = updatesNeeded - 1
-                            textHelper.log("Project updated: " .. project.name, "update", quiet)
+            manifest, msg = apiHandler.downloadManifest(manifest.owner, manifest.repo, manifest.branch, true)
+            if not manifest then
+                textHelper.log("Failed to update manifest: " .. msg, "update", false)
+            else
+                local projects = apiHandler.getInstalledProjects()
+                for _, project in ipairs(manifest.projects) do
+                    for _, installedProject in ipairs(projects) do
+                        local projectDef = {
+                            name = project.name,
+                            owner = manifest.owner,
+                            repo = manifest.repo,
+                            branch = manifest.branch
+                        }
+                        if apiHandler.areProjectsSame(installedProject, projectDef) then
+                            if manifest.last_commit ~= installedProject.last_commit then
+                                local sucsess, msg = apiHandler.downloadProject(manifest, installedProject,quiet)
+                                if not sucsess then
+                                    textHelper.log("Failed to update project: " .. msg, "update", false)
+                                else
+                                    updatesDone = updatesDone + 1
+                                end
+                            end
                         end
                     end
                 end
             end
         end
-    else
-        --all manifests update
-        
-        local manifests = apiHandler.getRepoManifests()
-        for _, manifestPath in ipairs(manifests) do
-            local manifest,msg = apiHandler.getRepoManifestFromPath(manifestPath)
-            if manifest == nil then
-                return 0, msg
-            end
-            --FIXME the single project update mode expects a project id, not a manifest id
-            local id = manifest.owner .. "." .. manifest.repo .. "." .. manifest.branch
-            local result, _ = this.update({ id }, quiet, upgrade)
-            if result > 0 then
-                updatesNeeded = updatesNeeded + result
-            end
-        end
     end
-    if updatesNeeded == 0 then
-        textHelper.log("All projects are up to date", "update", quiet)
-    else
-        textHelper.log("Updates needed: " .. updatesNeeded, "update", quiet)
-    end
-    return updatesNeeded
+
+    return updatesDone, nil
 end
+
+
 
 
 
@@ -381,9 +351,6 @@ this.SWITCH_Commands = {
     ["list"] = this.list,
     ["install"] = this.install,
     ["update"] = this.update,
-    ["upgrade"] = function(args)
-        return this.update(args, false, true)
-    end,
     ["remove"] = this.remove,
     ["help"] = this.help,
     ["setToken"] = setToken
