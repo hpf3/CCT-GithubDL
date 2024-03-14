@@ -12,3 +12,6 @@ wget run https://raw.githubusercontent.com/hpf3/CCT-GithubDL/main/programSetup.l
 ```
 
 if you wish to use the format it should be relatively stable... i may add dependency support in the future, but similar to the installer, it will just be ignored if it doesn't exist.
+
+a starter template for projects can be found at:https://github.com/hpf3/GithubDL-Template
+its testing setup assumes you have craftos installed
