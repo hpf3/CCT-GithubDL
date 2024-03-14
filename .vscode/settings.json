@@ -28,7 +28,9 @@
         "window"
     ],
     "Lua.diagnostics.disable": [
-        "need-check-nil"
+        "need-check-nil",
+        "empty-block",
+        "unused-function"
     ],
     "Lua.hint.setType": true,
     "Lua.runtime.version": "Lua 5.1",

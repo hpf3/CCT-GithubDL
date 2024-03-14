@@ -17,22 +17,18 @@ local libs = {}
 --=======================
 --#region UtilityFunctions
 
----loads needed libs into the libs var
-this.loadLibs = function ()
-    ---@module "GithubDL.libs.libManager"
-    local libManager = require("libs.GithubDL.libManager")
-    libs.base64 = libManager.getBase64()
-    libs.configManager = libManager.getConfigManager()
-    libs.fileManager = libManager.getFileManager()
-    libs.apiHandler = libManager.getApiHandler()
-    libs.httpManager = libManager.gethttpManager()
-    libs.textHelper = libManager.gettextHelper()
-end
-this.loadLibs()
+---@module "GithubDL.libs.libManager"
+local libManager = require("libs.GithubDL.libManager")
+local base64 = libManager.getBase64()
+local configManager = libManager.getConfigManager()
+local fileManager = libManager.getFileManager()
+local apiHandler = libManager.getApiHandler()
+local httpManager = libManager.gethttpManager()
+local textHelper = libManager.gettextHelper()
 ---writes a message to stdout and writes it to the main log file
 ---@param message string
 this.log = function(message)
-    libs.textHelper.log(message)
+    textHelper.log(message)
 end
 
 
@@ -43,8 +39,8 @@ end
 ---@return Project? project
 ---@return string? errorMsg
 this.findProject = function(ID)
-    local apiHandler = libs.apiHandler
-    local textHelper = libs.textHelper
+    local apiHandler = apiHandler
+    local textHelper = textHelper
     textHelper.log("searching for: " .. ID, "search", true)
     local name, owner, repo, branch = nil, nil, nil, nil
     --check if the ID is a '.' separated string, if so, split it
@@ -63,7 +59,7 @@ this.findProject = function(ID)
             name = parts[3]
         else
             this.log("Invalid ID, must be in the format owner.repo.branch.name, owner.repo.name, or name")
-            return nil,nil, "Invalid ID"
+            return nil, nil, "Invalid ID"
         end
     else
         name = ID
@@ -75,7 +71,7 @@ this.findProject = function(ID)
     textHelper.log("name: " .. name, "search", true)
     local availProjects = apiHandler.getAvailableProjects()
     if #availProjects == 0 then
-        return nil,nil, "No manifests found"
+        return nil, nil, "No manifests found"
     end
     textHelper.log("found " .. #availProjects .. " available projects", "search", true)
     local prefix = ""
@@ -100,7 +96,7 @@ this.findProject = function(ID)
         end
     end
     textHelper.log("Project not found", "search", false)
-    return nil,nil, "Project not found"
+    return nil, nil, "Project not found"
 end
 --#endregion UtilityFunctions
 
@@ -114,7 +110,7 @@ end
 
 
 this.startup = function()
-    local configManager = libs.configManager
+    local configManager = configManager
 
     --dir setup
     if not fs.exists(configManager.GetValue("data_dir")) then
@@ -129,7 +125,7 @@ this.startup = function()
     --api token warning
     if configManager.GetValue("api_token") == nil then
         this.log(
-        "No API token set, use 'GithubDL setToken <token>' to set one, api requests will be more limited without one")
+            "No API token set, use 'GithubDL setToken <token>' to set one, api requests will be more limited without one")
     end
 
     --update
@@ -148,7 +144,7 @@ end
 
 
 this.addRepo = function(funcArgs)
-    local apiHandler = libs.apiHandler
+    local apiHandler = apiHandler
 
     local url = funcArgs[1]
     local owner, repo, branch = apiHandler.getRepoFromUrl(url)
@@ -180,8 +176,8 @@ end
 
 
 this.list = function(funcArgs)
-    local apiHandler = libs.apiHandler
-    local textHelper = libs.textHelper
+    local apiHandler = apiHandler
+    local textHelper = textHelper
     local projects = {}
     if funcArgs[1] == "installed" then
         projects = apiHandler.getInstalledProjects()
@@ -198,8 +194,8 @@ end
 
 
 this.install = function(funcArgs)
-    local apiHandler = libs.apiHandler
-    local textHelper = libs.textHelper
+    local apiHandler = apiHandler
+    local textHelper = textHelper
 
     local ID = funcArgs[1]
     if ID == nil then
@@ -227,8 +223,8 @@ end
 ---@return number -- Number of updates performed
 ---@return string? -- Error message, if any
 this.update = function(funcArgs, quiet)
-    local apiHandler = libs.apiHandler
-    local textHelper = libs.textHelper
+    local apiHandler = apiHandler
+    local textHelper = textHelper
 
     if quiet == nil then quiet = false end
 
@@ -258,7 +254,7 @@ this.update = function(funcArgs, quiet)
                         }
                         if apiHandler.areProjectsSame(installedProject, projectDef) then
                             if manifest.last_commit ~= installedProject.last_commit then
-                                local sucsess, msg = apiHandler.downloadProject(manifest, installedProject,quiet)
+                                local sucsess, msg = apiHandler.downloadProject(manifest, installedProject, quiet)
                                 if not sucsess then
                                     textHelper.log("Failed to update project: " .. msg, "update", false)
                                 else
@@ -281,8 +277,8 @@ end
 
 
 this.remove = function(funcArgs)
-    local apiHandler = libs.apiHandler
-    local textHelper = libs.textHelper
+    local apiHandler = apiHandler
+    local textHelper = textHelper
 
     local ID = funcArgs[1]
     if ID == nil then
@@ -302,7 +298,7 @@ this.remove = function(funcArgs)
     ---@type ProjectDefinition
     local targetProject = nil
     for _, project in ipairs(installedProjects) do
-        if apiHandler.areProjectsSame(name,project) then
+        if apiHandler.areProjectsSame(name, project) then
             targetProject = project
         end
     end
@@ -315,7 +311,7 @@ end
 
 
 local function setToken(funcArgs)
-    local configManager = libs.configManager
+    local configManager = configManager
     local token = funcArgs[1]
     if token == nil then
         this.log("No token provided")
@@ -326,7 +322,7 @@ local function setToken(funcArgs)
 end
 
 
-this.help = function (funcArgs)
+this.help = function(funcArgs)
     --HACK Implement better to provide context for each command
     this.log("Usage: GithubDL <command> [args]")
     this.log("Commands:")
@@ -356,12 +352,40 @@ this.SWITCH_Commands = {
     ["setToken"] = setToken
 }
 
+--==================
+--=  Main program  =
+--==================
 
---Main program
+---shell completion function
+---@param shell any
+---@param pos number
+---@param text string
+---@param previousText string[]
+---@return string[] possible_completions the possible completions
+local function completion(shell, pos, text, previousText)
+    local completions = {}
+    if pos == 1 then
+        for key, _ in pairs(this.SWITCH_Commands) do
+            if textHelper.startsWith(key, text) then
+                local remaining = key:sub(#text + 1)
+                table.insert(completions, remaining)
+            end
+        end
+    end
+    return completions
+end
+
+local ApiTable = {
+    completion = completion,
+    commands = this.SWITCH_Commands
+}
+
+
+
 local info = debug.getinfo(1)
 if info.name ~= nil then
     if info.name == "?" then
-        return this.SWITCH_Commands
+        return ApiTable
     end
 end
 
@@ -378,7 +402,6 @@ if command ~= nil then
             this.log(msg)
         end
     else
-        this.log("Invalid command: '"..command.."', use 'GithubDL help' for help")
+        this.log("Invalid command: '" .. command .. "', use 'GithubDL help' for help")
     end
 end
-
